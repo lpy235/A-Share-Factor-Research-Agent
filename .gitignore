@@ -5,6 +5,6 @@ __pycache__/
 .ruff_cache/
 .env
 runs.db
+uploaded_docs/
 logs/
 demo_artifacts/*.png
-

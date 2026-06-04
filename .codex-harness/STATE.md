@@ -3,7 +3,7 @@
 ## Current Phase
 
 ```text
-First version complete
+V2 complete
 ```
 
 ## Workspace
@@ -45,15 +45,25 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 - [x] FastAPI smoke test passed.
 - [x] Run events endpoint passed.
 - [x] README and REPORT updated.
+- [x] V2 implementation plan written.
+- [x] Document upload API implemented.
+- [x] Filesystem-backed document store implemented.
+- [x] Research runs now accept `document_ids`.
+- [x] Workflow now parses uploaded documents, chunks content, retrieves relevant chunks, and extracts factors from uploaded material.
+- [x] V2 tests added and passed.
+- [x] `pytest -v` passed with 30 tests.
+- [x] `python evals/run_eval.py` passed with 5/5 correct and accuracy 1.0.
+- [x] `python -m compileall app` passed after V2.
+- [x] V2 upload-document smoke test passed.
 
 ## In Progress
 
-- [ ] Commit and push first version.
+- [ ] Commit and push V2.
 
 ## Next Queue
 
-- [ ] Commit first version.
-- [ ] Push first version.
+- [ ] Commit V2.
+- [ ] Push V2.
 
 ## Known Risks
 
@@ -61,7 +71,7 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 1. GitHub push may require authentication.
 2. Live AKShare and LLM calls may be unavailable.
 3. The workspace path contains spaces, so shell commands must quote paths.
-4. Live source search is intentionally deferred; first version uses deterministic fallback.
+4. Live source search is intentionally deferred; V2 supports upload-driven research.
 ```
 
 ## Recovery Note
@@ -69,7 +79,7 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 If this file is being read after context loss, continue with:
 
 ```text
-1. Confirm first-version commit and push status.
+1. Confirm V2 commit and push status.
 2. If already pushed, begin Stage 3 planning.
 3. Keep fixture and deterministic fallbacks available for offline demos.
 ```

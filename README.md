@@ -54,11 +54,30 @@ curl -X POST http://127.0.0.1:8000/research/runs \
 - Restricted Factor DSL validation
 - Safe formula execution with whitelisted operators
 - Deterministic A-share fixture data provider
+- Document upload API for Markdown/txt/PDF materials
+- Document-driven chunk retrieval before factor extraction
 - Rule-based factor hypothesis extraction fallback
 - Factor validation and long-short backtest metrics
 - SQLite event trace
 - FastAPI research endpoint
 - Deterministic eval runner
+
+## V2 Document-Driven Demo
+
+Upload a document:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/documents \
+  -F "file=@fixture_docs/demo_factor_note.md"
+```
+
+Run research with the returned `document_id`:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/research/runs \
+  -H 'Content-Type: application/json' \
+  -d '{"research_topic":"A股量价类动量因子","source_mode":"upload","document_ids":["<document_id>"]}'
+```
 
 ## Resume Positioning
 

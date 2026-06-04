@@ -38,14 +38,50 @@ Formula:
 rank(returns(close, 20) * ts_mean(volume, 20) / ts_mean(volume, 60))
 ```
 
+## V2 Document-Driven Demo
+
+V2 upgrades the project from a fixed demo note to user-provided research material.
+
+New workflow:
+
+```text
+POST /documents
+-> save Markdown/txt/PDF material
+-> return document_id
+-> POST /research/runs with document_ids
+-> parse uploaded document
+-> chunk and retrieve relevant content
+-> extract factor hypothesis from uploaded text
+-> generate Factor DSL
+-> validate and backtest
+-> return report and events
+```
+
+Smoke test result:
+
+```text
+uploaded file: fixture_docs/demo_factor_note.md
+selected factor: volume_price_momentum
+source title in factor spec: demo_factor_note.md
+```
+
 ## Verification
 
-The first version is expected to pass:
+The current version is expected to pass:
 
 ```bash
 pytest -v
 python evals/run_eval.py
 python -m compileall app
+```
+
+Latest verified result:
+
+```text
+pytest -v                 30 passed
+python evals/run_eval.py  accuracy 1.0
+python -m compileall app  passed
+V2 API smoke test         passed
 ```
 
 ## Limitations
@@ -60,5 +96,5 @@ python -m compileall app
 - Replace deterministic workflow with full LangGraph `StateGraph`.
 - Add embedding-backed RAG retrieval.
 - Add live structured LLM extraction with schema validation and retry.
-- Add document upload endpoint.
 - Add real public source search integration.
+- Add real AKShare demo mode and data caching.

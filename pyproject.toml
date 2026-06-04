@@ -9,6 +9,7 @@ dependencies = [
   "pydantic",
   "pydantic-settings",
   "python-dotenv",
+  "python-multipart",
   "pandas",
   "numpy",
   "scipy",
@@ -33,4 +34,3 @@ pythonpath = ["."]
 
 [tool.ruff]
 line-length = 100
-

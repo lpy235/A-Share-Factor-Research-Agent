@@ -12,7 +12,10 @@ from app.backtest.single_factor import (
 from app.data.fixture_provider import FixtureAshareDataProvider
 from app.factor.executor import FactorExecutor
 from app.rag.chunker import DocumentChunk
+from app.rag.chunker import SimpleChunker
+from app.rag.retriever import KeywordRetriever
 from app.reports.markdown_report import render_report
+from app.sources.parser import DocumentParser
 
 
 def _safe_float(value: float) -> float:
@@ -22,16 +25,18 @@ def _safe_float(value: float) -> float:
 
 
 def run_research_workflow(state: ResearchState) -> ResearchState:
-    chunks = [
-        DocumentChunk(
-            chunk_id="demo:0",
-            source_title="demo factor note",
-            source_type="user_upload",
-            text="成交量放大且价格上涨，可能代表趋势延续，可构造量价动量因子。过去收益率较高的股票也可能体现动量效应。",
-        )
-    ]
+    chunks = _load_research_chunks(state)
 
     hypotheses = extract_hypotheses_from_chunks(state["research_topic"], chunks)
+    if not hypotheses:
+        fallback = DocumentChunk(
+            chunk_id="fallback:0",
+            source_title="fallback factor note",
+            source_type="fallback",
+            text="成交量放大且价格上涨，可能代表趋势延续，可构造量价动量因子。",
+        )
+        chunks = [fallback]
+        hypotheses = extract_hypotheses_from_chunks(state["research_topic"], chunks)
     specs = generate_factor_specs(hypotheses)
 
     provider = FixtureAshareDataProvider()
@@ -95,3 +100,30 @@ def run_research_workflow(state: ResearchState) -> ResearchState:
     state["report_markdown"] = report
     state["selected_factors"] = [item.factor_name for item in selected]
     return state
+
+
+def _load_research_chunks(state: ResearchState) -> list[DocumentChunk]:
+    document_paths = state.get("document_paths", [])
+    if not document_paths:
+        return [
+            DocumentChunk(
+                chunk_id="demo:0",
+                source_title="demo factor note",
+                source_type="user_upload",
+                text="成交量放大且价格上涨，可能代表趋势延续，可构造量价动量因子。过去收益率较高的股票也可能体现动量效应。",
+            )
+        ]
+
+    parser = DocumentParser()
+    chunker = SimpleChunker()
+    chunks: list[DocumentChunk] = []
+    for path in document_paths:
+        parsed = parser.parse_file(path)
+        chunks.extend(
+            chunker.chunk(parsed.source_title, parsed.source_type, parsed.text, parsed.source_url)
+        )
+    if not chunks:
+        return []
+    retriever = KeywordRetriever(chunks)
+    retrieved = retriever.search(state["research_topic"], top_k=state.get("max_chunks", 5))
+    return retrieved or chunks[: state.get("max_chunks", 5)]

@@ -9,6 +9,7 @@ class ResearchState(TypedDict, total=False):
     start_date: str
     end_date: str
     document_paths: list[str]
+    max_chunks: int
     sources: list[dict]
     chunks: list[dict]
     factor_specs: list[dict]
@@ -16,4 +17,3 @@ class ResearchState(TypedDict, total=False):
     report_markdown: str
     selected_factors: list[str]
     warnings: list[str]
-

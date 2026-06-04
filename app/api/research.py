@@ -17,19 +17,32 @@ event_store = EventStore(DB_PATH)
 class ResearchRunRequest(BaseModel):
     research_topic: str
     source_mode: str = "upload"
+    document_ids: list[str] = []
     universe: str = "CSI300"
     start_date: str = "2020-01-01"
     end_date: str = "2020-12-31"
+    max_chunks: int = 5
 
 
 @router.post("/runs")
 def create_research_run(request: ResearchRunRequest):
     run_id = f"run_{uuid4().hex[:12]}"
+    document_paths = []
+    if request.document_ids:
+        from app.storage.documents import DocumentStore
+
+        document_store = DocumentStore()
+        document_paths = [document_store.get(document_id).path for document_id in request.document_ids]
+
     event_store.append(
         run_id,
         "CreateRun",
         "run_started",
-        {"research_topic": request.research_topic, "source_mode": request.source_mode},
+        {
+            "research_topic": request.research_topic,
+            "source_mode": request.source_mode,
+            "document_ids": request.document_ids,
+        },
     )
     state = run_research_workflow(
         {
@@ -39,6 +52,8 @@ def create_research_run(request: ResearchRunRequest):
             "universe": request.universe,
             "start_date": request.start_date,
             "end_date": request.end_date,
+            "document_paths": document_paths,
+            "max_chunks": request.max_chunks,
         }
     )
     event_store.append(
@@ -54,6 +69,6 @@ def create_research_run(request: ResearchRunRequest):
         "run_id": run_id,
         "status": "completed",
         "selected_factors": state.get("selected_factors", []),
+        "factor_specs": state.get("factor_specs", []),
         "report_markdown": state["report_markdown"],
     }
-
