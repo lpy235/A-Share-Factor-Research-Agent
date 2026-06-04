@@ -3,7 +3,7 @@
 ## Current Phase
 
 ```text
-V2 complete
+V3 design written, awaiting review
 ```
 
 ## Workspace
@@ -55,15 +55,19 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 - [x] `python evals/run_eval.py` passed with 5/5 correct and accuracy 1.0.
 - [x] `python -m compileall app` passed after V2.
 - [x] V2 upload-document smoke test passed.
+- [x] V2 committed and pushed.
+- [x] V3 direction selected: LangGraph agentization and complete node-level trace.
+- [x] V3 LangGraph design spec written.
 
 ## In Progress
 
-- [ ] Commit and push V2.
+- [ ] User review of V3 LangGraph design spec.
 
 ## Next Queue
 
-- [ ] Commit V2.
-- [ ] Push V2.
+- [ ] Review V3 design spec.
+- [ ] Write V3 implementation plan after design approval.
+- [ ] Implement V3 LangGraph workflow.
 
 ## Known Risks
 
@@ -72,6 +76,7 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 2. Live AKShare and LLM calls may be unavailable.
 3. The workspace path contains spaces, so shell commands must quote paths.
 4. Live source search is intentionally deferred; V2 supports upload-driven research.
+5. V3 must preserve V2 API behavior while changing the internal workflow architecture.
 ```
 
 ## Recovery Note
@@ -79,7 +84,7 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 If this file is being read after context loss, continue with:
 
 ```text
-1. Confirm V2 commit and push status.
-2. If already pushed, begin Stage 3 planning.
+1. Confirm current git status.
+2. Continue V3 LangGraph design review or implementation planning depending on user approval.
 3. Keep fixture and deterministic fallbacks available for offline demos.
 ```
