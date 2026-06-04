@@ -1,0 +1,36 @@
+[project]
+name = "a-share-factor-research-agent"
+version = "0.1.0"
+description = "A-share factor research agent for extracting, validating, and backtesting factor hypotheses."
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi",
+  "uvicorn",
+  "pydantic",
+  "pydantic-settings",
+  "python-dotenv",
+  "pandas",
+  "numpy",
+  "scipy",
+  "akshare",
+  "openai",
+  "langgraph",
+  "chromadb",
+  "sentence-transformers",
+  "pypdf",
+  "markdown",
+  "beautifulsoup4",
+  "requests",
+  "matplotlib",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-cov", "ruff"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+

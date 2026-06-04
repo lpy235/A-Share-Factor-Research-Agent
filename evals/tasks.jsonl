@@ -1,0 +1,6 @@
+{"id":"dsl_valid_001","type":"dsl_validation","formula":"rank(returns(close, 20))","expected_valid":true}
+{"id":"dsl_invalid_001","type":"dsl_validation","formula":"__import__('os').system('rm -rf /')","expected_valid":false}
+{"id":"dsl_invalid_002","type":"dsl_validation","formula":"evil(close, 20)","expected_valid":false}
+{"id":"extract_volume_price_001","type":"factor_extraction","text":"成交量放大且价格上涨，可能代表趋势延续，可构造量价动量因子。","expected_fields":["close","volume"],"expected_category":"volume_price"}
+{"id":"extract_momentum_001","type":"factor_extraction","text":"过去收益率较高的股票在短期可能延续上涨，体现动量效应。","expected_fields":["close"],"expected_category":"momentum"}
+

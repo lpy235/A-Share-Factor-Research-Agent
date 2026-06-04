@@ -3,7 +3,7 @@
 ## Current Phase
 
 ```text
-Stage 1: Deterministic core MVP
+First version complete
 ```
 
 ## Workspace
@@ -34,16 +34,26 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 - [x] Remote repository inspected.
 - [x] Remote README/LICENSE incorporated locally.
 - [x] Implementation plan paths reconciled with the new workspace path.
+- [x] Stage 1 deterministic core modules implemented.
+- [x] Stage 2 deterministic workflow/API/event/eval skeleton implemented.
+- [x] Test suite added.
+- [x] Local virtual environment created.
+- [x] Minimal runtime/test dependencies installed.
+- [x] `pytest -v` passed with 26 tests.
+- [x] `python evals/run_eval.py` passed with 5/5 correct and accuracy 1.0.
+- [x] `python -m compileall app` passed.
+- [x] FastAPI smoke test passed.
+- [x] Run events endpoint passed.
+- [x] README and REPORT updated.
 
 ## In Progress
 
-- [ ] Start Stage 1 Task 1.
+- [ ] Commit and push first version.
 
 ## Next Queue
 
-- [ ] Start Stage 1 Task 1.
-- [ ] Run Stage 1 scaffold verification.
-- [ ] Commit harness and docs.
+- [ ] Commit first version.
+- [ ] Push first version.
 
 ## Known Risks
 
@@ -51,7 +61,7 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 1. GitHub push may require authentication.
 2. Live AKShare and LLM calls may be unavailable.
 3. The workspace path contains spaces, so shell commands must quote paths.
-4. Stage 1 tests require dependencies that may not be installed yet.
+4. Live source search is intentionally deferred; first version uses deterministic fallback.
 ```
 
 ## Recovery Note
@@ -59,7 +69,7 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 If this file is being read after context loss, continue with:
 
 ```text
-1. Read Stage 1 implementation plan.
-2. Start Stage 1 Task 1.
-3. Use fixture and deterministic fallbacks when external services are unavailable.
+1. Confirm first-version commit and push status.
+2. If already pushed, begin Stage 3 planning.
+3. Keep fixture and deterministic fallbacks available for offline demos.
 ```
