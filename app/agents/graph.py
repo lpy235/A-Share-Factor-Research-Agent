@@ -53,6 +53,8 @@ def run_research_workflow(state: ResearchState) -> ResearchState:
         "start_date": "2020-01-01",
         "end_date": "2020-12-31",
         "max_chunks": 5,
+        "max_sources": 3,
+        "allow_live_fetch": False,
         "warnings": [],
         "errors": [],
         "trace": [],

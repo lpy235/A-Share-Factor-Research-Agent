@@ -78,7 +78,7 @@ python -m compileall app
 Latest verified result:
 
 ```text
-pytest -v                 36 passed
+pytest -v                 42 passed
 python evals/run_eval.py  accuracy 1.0
 python -m compileall app  passed
 ```
@@ -104,10 +104,33 @@ LoadDocuments
 
 Each node records compact SQLite events, including start, completion, fallback, and failure events. This makes `/runs/{run_id}/events` a full agent trace rather than only a run-level log.
 
+## V4 Public-Source Discovery
+
+V4 adds `auto` and `hybrid` source modes.
+
+Source modes:
+
+```text
+upload: parse uploaded documents only
+auto: discover allowed public sources from the research topic
+hybrid: combine uploaded documents and public sources
+```
+
+The public-source path is deterministic by default. It uses a curated seed set of public A-share factor research pages, applies `SourcePolicy`, and avoids live fetching unless `allow_live_fetch=true`.
+
+Example request:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/research/runs \
+  -H 'Content-Type: application/json' \
+  -d '{"research_topic":"A股量价类动量因子","source_mode":"auto","max_sources":2}'
+```
+
 ## Limitations
 
 - Fixture data is used for deterministic demo execution.
 - Live AKShare data is implemented as an adapter but not required by tests.
+- Public-source discovery uses curated deterministic seeds by default; live fetch is optional.
 - LLM extraction is represented by deterministic fallback rules so the project works without API keys.
 - Historical backtests are research artifacts and do not constitute investment advice.
 
@@ -115,5 +138,5 @@ Each node records compact SQLite events, including start, completion, fallback, 
 
 - Add embedding-backed RAG retrieval.
 - Add live structured LLM extraction with schema validation and retry.
-- Add real public source search integration.
+- Replace curated public-source seeds with a real search API integration.
 - Add real AKShare demo mode and data caching.

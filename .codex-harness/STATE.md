@@ -3,7 +3,7 @@
 ## Current Phase
 
 ```text
-V3 complete
+V4 complete
 ```
 
 ## Workspace
@@ -67,14 +67,24 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 - [x] `python evals/run_eval.py` passed with 5/5 correct and accuracy 1.0.
 - [x] `python -m compileall app` passed after V3.
 - [x] V3 committed and pushed.
+- [x] V4 public-source discovery design spec written.
+- [x] V4 public-source implementation plan written.
+- [x] Deterministic public-source discovery service implemented.
+- [x] `auto` and `hybrid` source modes integrated into `LoadDocumentsNode`.
+- [x] Research API accepts `max_sources` and `allow_live_fetch`.
+- [x] V4 source discovery, workflow, and API tests added.
+- [x] `pytest -v` passed with 42 tests.
+- [x] `python evals/run_eval.py` passed with 5/5 correct and accuracy 1.0.
+- [x] `python -m compileall app` passed after V4.
+- [x] V4 committed and pushed.
 
 ## In Progress
 
-- [ ] Plan V4 public-source search or embedding-backed RAG.
+- [ ] Plan V5 embedding-backed RAG.
 
 ## Next Queue
 
-- [ ] Decide V4 scope: public-source search, embedding-backed RAG, or live LLM extraction.
+- [ ] Plan V5 embedding-backed RAG.
 
 ## Known Risks
 
@@ -82,8 +92,8 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 1. GitHub push may require authentication.
 2. Live AKShare and LLM calls may be unavailable.
 3. The workspace path contains spaces, so shell commands must quote paths.
-4. Live source search is intentionally deferred; V2 supports upload-driven research.
-5. V3 must preserve V2 API behavior while changing the internal workflow architecture.
+4. Public-source discovery currently uses deterministic curated seeds; live search API integration is deferred.
+5. V4 must preserve upload mode while extending auto/hybrid modes.
 ```
 
 ## Recovery Note
@@ -92,6 +102,6 @@ If this file is being read after context loss, continue with:
 
 ```text
 1. Confirm current git status.
-2. Begin V4 planning if requested.
+2. If V4 is not committed, run full verification and commit/push it.
 3. Keep fixture and deterministic fallbacks available for offline demos.
 ```

@@ -21,6 +21,7 @@ from app.factor.validator import FactorDslValidator
 from app.rag.chunker import DocumentChunk, SimpleChunker
 from app.rag.retriever import KeywordRetriever
 from app.reports.markdown_report import render_report
+from app.sources.discovery import PublicSourceDiscovery
 from app.sources.parser import DocumentParser, ParsedDocument
 
 
@@ -32,8 +33,12 @@ def load_documents_node(state: ResearchState) -> ResearchState:
         lambda item: {
             "source_mode": item.get("source_mode", "upload"),
             "document_path_count": len(item.get("document_paths", [])),
+            "max_sources": item.get("max_sources", 3),
         },
-        lambda item: {"source_count": len(item.get("sources", []))},
+        lambda item: {
+            "source_count": len(item.get("sources", [])),
+            "discovered_source_count": len(item.get("discovered_sources", [])),
+        },
     )
 
 
@@ -153,20 +158,45 @@ def _load_documents(state: ResearchState, tracer: GraphEventTracer) -> ResearchS
     parser = DocumentParser()
     documents: list[ParsedDocument] = []
     warnings = list(state.get("warnings", []))
+    source_mode = state.get("source_mode", "upload")
 
-    for path in state.get("document_paths", []):
-        try:
-            documents.append(parser.parse_file(path))
-        except Exception as exc:
-            warning = f"Failed to parse document {path}: {exc}"
-            warnings.append(warning)
-            tracer.node_fallback("LoadDocumentsNode", {"reason": "document_parse_failed", "path": path})
+    if source_mode in {"upload", "hybrid"}:
+        for path in state.get("document_paths", []):
+            try:
+                documents.append(parser.parse_file(path))
+            except Exception as exc:
+                warning = f"Failed to parse document {path}: {exc}"
+                warnings.append(warning)
+                tracer.node_fallback("LoadDocumentsNode", {"reason": "document_parse_failed", "path": path})
 
+    discovered_sources = []
+    if source_mode in {"auto", "hybrid"}:
+        discovered = PublicSourceDiscovery().discover(
+            query=state["research_topic"],
+            max_sources=state.get("max_sources", 3),
+            allow_live_fetch=state.get("allow_live_fetch", False),
+        )
+        discovered_sources = [source.to_source_dict() for source in discovered]
+        if not discovered_sources:
+            tracer.node_fallback("LoadDocumentsNode", {"reason": "public_source_discovery_empty"})
+
+    sources = [_document_to_dict(document) for document in documents] + discovered_sources
+    if source_mode not in {"auto", "upload", "hybrid"}:
+        warnings.append(f"Unknown source_mode={source_mode}; using deterministic demo source.")
+        tracer.node_fallback("LoadDocumentsNode", {"reason": "unknown_source_mode", "source_mode": source_mode})
+
+    if not sources and source_mode == "hybrid":
+        tracer.node_fallback("LoadDocumentsNode", {"reason": "hybrid_sources_empty"})
     if not documents:
-        documents = [_demo_document()]
-        tracer.node_fallback("LoadDocumentsNode", {"reason": "no_parseable_documents"})
+        if source_mode == "upload":
+            tracer.node_fallback("LoadDocumentsNode", {"reason": "no_parseable_documents"})
 
-    state["sources"] = [_document_to_dict(document) for document in documents]
+    if not sources:
+        sources = [_document_to_dict(_demo_document())]
+        tracer.node_fallback("LoadDocumentsNode", {"reason": "using_demo_source"})
+
+    state["sources"] = sources
+    state["discovered_sources"] = discovered_sources
     state["warnings"] = warnings
     return state
 

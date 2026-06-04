@@ -41,3 +41,26 @@ def test_research_api_returns_v2_compatible_response_and_node_trace():
         event["node"] == "GenerateReportNode" and event["event_type"] == "run_completed"
         for event in events
     )
+
+
+def test_research_api_supports_auto_public_sources():
+    client = TestClient(app)
+
+    response = client.post(
+        "/research/runs",
+        json={
+            "research_topic": "A股量价类动量因子",
+            "source_mode": "auto",
+            "universe": "CSI300",
+            "start_date": "2020-01-01",
+            "end_date": "2020-12-31",
+            "max_chunks": 5,
+            "max_sources": 2,
+            "allow_live_fetch": False,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "volume_price_momentum" in body["selected_factors"]
+    assert body["factor_specs"][0]["source_url"]

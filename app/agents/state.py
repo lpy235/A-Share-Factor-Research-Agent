@@ -10,7 +10,10 @@ class ResearchState(TypedDict, total=False):
     end_date: str
     document_paths: list[str]
     max_chunks: int
+    max_sources: int
+    allow_live_fetch: bool
     sources: list[dict]
+    discovered_sources: list[dict]
     chunks: list[dict]
     hypotheses: list[dict]
     factor_specs: list[dict]

@@ -22,6 +22,8 @@ class ResearchRunRequest(BaseModel):
     start_date: str = "2020-01-01"
     end_date: str = "2020-12-31"
     max_chunks: int = 5
+    max_sources: int = 3
+    allow_live_fetch: bool = False
 
 
 @router.post("/runs")
@@ -42,6 +44,8 @@ def create_research_run(request: ResearchRunRequest):
             "research_topic": request.research_topic,
             "source_mode": request.source_mode,
             "document_ids": request.document_ids,
+            "max_sources": request.max_sources,
+            "allow_live_fetch": request.allow_live_fetch,
         },
     )
     state = run_research_workflow(
@@ -54,6 +58,8 @@ def create_research_run(request: ResearchRunRequest):
             "end_date": request.end_date,
             "document_paths": document_paths,
             "max_chunks": request.max_chunks,
+            "max_sources": request.max_sources,
+            "allow_live_fetch": request.allow_live_fetch,
             "event_db_path": DB_PATH,
         }
     )
