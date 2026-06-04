@@ -3,7 +3,7 @@
 ## Current Phase
 
 ```text
-V3 design written, awaiting review
+V3 complete
 ```
 
 ## Workspace
@@ -58,16 +58,23 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 - [x] V2 committed and pushed.
 - [x] V3 direction selected: LangGraph agentization and complete node-level trace.
 - [x] V3 LangGraph design spec written.
+- [x] V3 implementation plan written.
+- [x] LangGraph package installed in local virtual environment.
+- [x] Research graph nodes and event tracer implemented.
+- [x] V3 LangGraph workflow implemented.
+- [x] V3 graph/event/API tests added.
+- [x] `pytest -v` passed with 36 tests.
+- [x] `python evals/run_eval.py` passed with 5/5 correct and accuracy 1.0.
+- [x] `python -m compileall app` passed after V3.
+- [x] V3 committed and pushed.
 
 ## In Progress
 
-- [ ] User review of V3 LangGraph design spec.
+- [ ] Plan V4 public-source search or embedding-backed RAG.
 
 ## Next Queue
 
-- [ ] Review V3 design spec.
-- [ ] Write V3 implementation plan after design approval.
-- [ ] Implement V3 LangGraph workflow.
+- [ ] Decide V4 scope: public-source search, embedding-backed RAG, or live LLM extraction.
 
 ## Known Risks
 
@@ -85,6 +92,6 @@ If this file is being read after context loss, continue with:
 
 ```text
 1. Confirm current git status.
-2. Continue V3 LangGraph design review or implementation planning depending on user approval.
+2. Begin V4 planning if requested.
 3. Keep fixture and deterministic fallbacks available for offline demos.
 ```

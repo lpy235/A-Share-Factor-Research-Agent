@@ -1,0 +1,43 @@
+from fastapi.testclient import TestClient
+
+from app.main import app
+
+
+def test_research_api_returns_v2_compatible_response_and_node_trace():
+    client = TestClient(app)
+
+    response = client.post(
+        "/research/runs",
+        json={
+            "research_topic": "A股量价类动量因子",
+            "source_mode": "upload",
+            "universe": "CSI300",
+            "start_date": "2020-01-01",
+            "end_date": "2020-12-31",
+            "max_chunks": 5,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body) == {
+        "run_id",
+        "status",
+        "selected_factors",
+        "factor_specs",
+        "report_markdown",
+    }
+    assert body["status"] == "completed"
+    assert body["selected_factors"] == ["volume_price_momentum"]
+
+    events_response = client.get(f"/runs/{body['run_id']}/events")
+    assert events_response.status_code == 200
+    events = events_response.json()["events"]
+    assert any(
+        event["node"] == "LoadDocumentsNode" and event["event_type"] == "node_started"
+        for event in events
+    )
+    assert any(
+        event["node"] == "GenerateReportNode" and event["event_type"] == "run_completed"
+        for event in events
+    )

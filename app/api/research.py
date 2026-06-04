@@ -54,6 +54,7 @@ def create_research_run(request: ResearchRunRequest):
             "end_date": request.end_date,
             "document_paths": document_paths,
             "max_chunks": request.max_chunks,
+            "event_db_path": DB_PATH,
         }
     )
     event_store.append(

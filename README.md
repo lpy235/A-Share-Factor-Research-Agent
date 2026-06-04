@@ -30,7 +30,7 @@ The LLM is not allowed to execute arbitrary Python. It can only produce a restri
 python -m venv .venv
 source .venv/bin/activate
 pip install -U pip
-pip install pandas numpy fastapi pydantic pydantic-settings python-dotenv requests beautifulsoup4 matplotlib pytest uvicorn openai pypdf
+pip install pandas numpy fastapi pydantic pydantic-settings python-dotenv requests beautifulsoup4 matplotlib pytest uvicorn openai pypdf langgraph
 pytest -v
 python evals/run_eval.py
 ```
@@ -56,11 +56,32 @@ curl -X POST http://127.0.0.1:8000/research/runs \
 - Deterministic A-share fixture data provider
 - Document upload API for Markdown/txt/PDF materials
 - Document-driven chunk retrieval before factor extraction
+- LangGraph research workflow with explicit agent nodes
+- Node-level SQLite trace for every research run
 - Rule-based factor hypothesis extraction fallback
 - Factor validation and long-short backtest metrics
 - SQLite event trace
 - FastAPI research endpoint
 - Deterministic eval runner
+
+## V3 LangGraph Agent Workflow
+
+The research run is now executed by a LangGraph `StateGraph`:
+
+```text
+LoadDocuments
+-> RetrieveChunks
+-> ExtractHypotheses
+-> GenerateFactorDSL
+-> ValidateDSL
+-> LoadMarketData
+-> ExecuteFactors
+-> RunBacktest
+-> SelectFactors
+-> GenerateReport
+```
+
+Each node writes compact events to SQLite, so `/runs/{run_id}/events` can show how the agent moved from source material to factor selection and report generation.
 
 ## V2 Document-Driven Demo
 

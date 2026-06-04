@@ -78,11 +78,31 @@ python -m compileall app
 Latest verified result:
 
 ```text
-pytest -v                 30 passed
+pytest -v                 36 passed
 python evals/run_eval.py  accuracy 1.0
 python -m compileall app  passed
-V2 API smoke test         passed
 ```
+
+## V3 LangGraph Agent Workflow
+
+V3 replaces the monolithic workflow with a LangGraph `StateGraph`.
+
+Graph nodes:
+
+```text
+LoadDocuments
+-> RetrieveChunks
+-> ExtractHypotheses
+-> GenerateFactorDSL
+-> ValidateDSL
+-> LoadMarketData
+-> ExecuteFactors
+-> RunBacktest
+-> SelectFactors
+-> GenerateReport
+```
+
+Each node records compact SQLite events, including start, completion, fallback, and failure events. This makes `/runs/{run_id}/events` a full agent trace rather than only a run-level log.
 
 ## Limitations
 
@@ -93,7 +113,6 @@ V2 API smoke test         passed
 
 ## Next Steps
 
-- Replace deterministic workflow with full LangGraph `StateGraph`.
 - Add embedding-backed RAG retrieval.
 - Add live structured LLM extraction with schema validation and retry.
 - Add real public source search integration.
