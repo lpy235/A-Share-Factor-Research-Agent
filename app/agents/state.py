@@ -12,6 +12,9 @@ class ResearchState(TypedDict, total=False):
     max_chunks: int
     max_sources: int
     allow_live_fetch: bool
+    retrieval_mode: Literal["keyword", "vector", "hybrid"]
+    embedding_dim: int
+    retrieval_diagnostics: dict
     sources: list[dict]
     discovered_sources: list[dict]
     chunks: list[dict]

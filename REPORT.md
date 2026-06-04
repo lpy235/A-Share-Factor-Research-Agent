@@ -78,7 +78,7 @@ python -m compileall app
 Latest verified result:
 
 ```text
-pytest -v                 42 passed
+pytest -v                 47 passed
 python evals/run_eval.py  accuracy 1.0
 python -m compileall app  passed
 ```
@@ -126,17 +126,40 @@ curl -s -X POST http://127.0.0.1:8000/research/runs \
   -d '{"research_topic":"A股量价类动量因子","source_mode":"auto","max_sources":2}'
 ```
 
+## V5 Embedding RAG
+
+V5 replaces keyword-only retrieval with an embedding-backed retrieval layer.
+
+Retrieval modes:
+
+```text
+keyword: existing token-overlap retrieval
+vector: cosine similarity over deterministic hashing embeddings
+hybrid: combine keyword and vector scores, then deduplicate chunks
+```
+
+The default is `hybrid`. This keeps the demo offline and deterministic while making the RAG architecture explicit and extensible.
+
+Example request:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/research/runs \
+  -H 'Content-Type: application/json' \
+  -d '{"research_topic":"A股量价类动量因子","source_mode":"auto","retrieval_mode":"vector","embedding_dim":128}'
+```
+
 ## Limitations
 
 - Fixture data is used for deterministic demo execution.
 - Live AKShare data is implemented as an adapter but not required by tests.
 - Public-source discovery uses curated deterministic seeds by default; live fetch is optional.
+- Embeddings use a deterministic hashing backend by default; model-backed embeddings are deferred.
 - LLM extraction is represented by deterministic fallback rules so the project works without API keys.
 - Historical backtests are research artifacts and do not constitute investment advice.
 
 ## Next Steps
 
-- Add embedding-backed RAG retrieval.
 - Add live structured LLM extraction with schema validation and retry.
+- Replace hashing embeddings with optional sentence-transformers or ChromaDB.
 - Replace curated public-source seeds with a real search API integration.
 - Add real AKShare demo mode and data caching.

@@ -64,3 +64,23 @@ def test_research_api_supports_auto_public_sources():
     body = response.json()
     assert "volume_price_momentum" in body["selected_factors"]
     assert body["factor_specs"][0]["source_url"]
+
+
+def test_research_api_supports_vector_retrieval_mode():
+    client = TestClient(app)
+
+    response = client.post(
+        "/research/runs",
+        json={
+            "research_topic": "A股量价类动量因子",
+            "source_mode": "auto",
+            "retrieval_mode": "vector",
+            "embedding_dim": 128,
+            "max_sources": 2,
+            "allow_live_fetch": False,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "volume_price_momentum" in body["selected_factors"]

@@ -55,6 +55,8 @@ def run_research_workflow(state: ResearchState) -> ResearchState:
         "max_chunks": 5,
         "max_sources": 3,
         "allow_live_fetch": False,
+        "retrieval_mode": "hybrid",
+        "embedding_dim": 256,
         "warnings": [],
         "errors": [],
         "trace": [],

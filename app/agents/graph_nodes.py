@@ -19,7 +19,9 @@ from app.factor.dsl import FactorSpec
 from app.factor.executor import FactorExecutor
 from app.factor.validator import FactorDslValidator
 from app.rag.chunker import DocumentChunk, SimpleChunker
+from app.rag.embeddings import HashingTextEmbedder
 from app.rag.retriever import KeywordRetriever
+from app.rag.vector_retriever import HybridRetriever, RetrievalResult, VectorRetriever
 from app.reports.markdown_report import render_report
 from app.sources.discovery import PublicSourceDiscovery
 from app.sources.parser import DocumentParser, ParsedDocument
@@ -50,10 +52,12 @@ def retrieve_chunks_node(state: ResearchState) -> ResearchState:
         lambda item: {
             "source_count": len(item.get("sources", [])),
             "max_chunks": item.get("max_chunks", 5),
+            "retrieval_mode": item.get("retrieval_mode", "hybrid"),
         },
         lambda item: {
             "chunk_count": len(item.get("chunks", [])),
             "source_titles": sorted({chunk.get("source_title", "") for chunk in item.get("chunks", [])}),
+            "retrieval_diagnostics": item.get("retrieval_diagnostics", {}),
         },
     )
 
@@ -215,12 +219,23 @@ def _retrieve_chunks(state: ResearchState, tracer: GraphEventTracer) -> Research
         )
 
     max_chunks = state.get("max_chunks", 5)
+    retrieval_mode = state.get("retrieval_mode", "hybrid")
     if chunks:
-        retrieved = KeywordRetriever(chunks).search(state["research_topic"], top_k=max_chunks)
+        retrieved, diagnostics = _retrieve_by_mode(
+            chunks=chunks,
+            query=state["research_topic"],
+            top_k=max_chunks,
+            retrieval_mode=retrieval_mode,
+            embedding_dim=state.get("embedding_dim", 256),
+        )
+        state["retrieval_diagnostics"] = diagnostics
         if retrieved:
             chunks = retrieved
         else:
-            tracer.node_fallback("RetrieveChunksNode", {"reason": "keyword_retrieval_empty"})
+            tracer.node_fallback(
+                "RetrieveChunksNode",
+                {"reason": "retrieval_empty", "retrieval_mode": retrieval_mode},
+            )
             chunks = chunks[:max_chunks]
 
     if not chunks:
@@ -229,6 +244,52 @@ def _retrieve_chunks(state: ResearchState, tracer: GraphEventTracer) -> Research
 
     state["chunks"] = [_chunk_to_dict(chunk) for chunk in chunks]
     return state
+
+
+def _retrieve_by_mode(
+    chunks: list[DocumentChunk],
+    query: str,
+    top_k: int,
+    retrieval_mode: str,
+    embedding_dim: int,
+) -> tuple[list[DocumentChunk], dict[str, Any]]:
+    embedder = HashingTextEmbedder(dim=embedding_dim)
+    if retrieval_mode == "keyword":
+        retrieved = KeywordRetriever(chunks).search(query, top_k=top_k)
+        return retrieved, {
+            "retrieval_mode": "keyword",
+            "embedding_dim": None,
+            "retrieved_count": len(retrieved),
+        }
+    if retrieval_mode == "vector":
+        results = VectorRetriever(chunks, embedder).search_with_scores(query, top_k=top_k)
+        return [item.chunk for item in results], _retrieval_diagnostics("vector", embedding_dim, results)
+    if retrieval_mode == "hybrid":
+        results = HybridRetriever(chunks, embedder).search_with_scores(query, top_k=top_k)
+        return [item.chunk for item in results], _retrieval_diagnostics("hybrid", embedding_dim, results)
+
+    retrieved = KeywordRetriever(chunks).search(query, top_k=top_k)
+    return retrieved, {
+        "retrieval_mode": "keyword",
+        "requested_retrieval_mode": retrieval_mode,
+        "embedding_dim": None,
+        "retrieved_count": len(retrieved),
+        "fallback_reason": "unknown_retrieval_mode",
+    }
+
+
+def _retrieval_diagnostics(
+    retrieval_mode: str,
+    embedding_dim: int,
+    results: list[RetrievalResult],
+) -> dict[str, Any]:
+    return {
+        "retrieval_mode": retrieval_mode,
+        "embedding_dim": embedding_dim,
+        "retrieved_count": len(results),
+        "top_scores": [round(item.score, 6) for item in results[:5]],
+        "methods": [item.method for item in results[:5]],
+    }
 
 
 def _extract_hypotheses(state: ResearchState, tracer: GraphEventTracer) -> ResearchState:

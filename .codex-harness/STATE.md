@@ -3,7 +3,7 @@
 ## Current Phase
 
 ```text
-V4 complete
+V5 complete
 ```
 
 ## Workspace
@@ -77,14 +77,24 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 - [x] `python evals/run_eval.py` passed with 5/5 correct and accuracy 1.0.
 - [x] `python -m compileall app` passed after V4.
 - [x] V4 committed and pushed.
+- [x] V5 embedding RAG design spec written.
+- [x] V5 embedding RAG implementation plan written.
+- [x] Deterministic hashing embedder implemented.
+- [x] Vector and hybrid retrievers implemented.
+- [x] `retrieval_mode` and `embedding_dim` integrated into graph/API.
+- [x] V5 embedding/vector workflow/API tests added.
+- [x] `pytest -v` passed with 47 tests.
+- [x] `python evals/run_eval.py` passed with 5/5 correct and accuracy 1.0.
+- [x] `python -m compileall app` passed after V5.
+- [x] V5 committed and pushed.
 
 ## In Progress
 
-- [ ] Plan V5 embedding-backed RAG.
+- [ ] Plan V6 structured LLM extraction or real A-share data mode.
 
 ## Next Queue
 
-- [ ] Plan V5 embedding-backed RAG.
+- [ ] Plan V6 structured LLM extraction or real A-share data mode.
 
 ## Known Risks
 
@@ -93,7 +103,7 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 2. Live AKShare and LLM calls may be unavailable.
 3. The workspace path contains spaces, so shell commands must quote paths.
 4. Public-source discovery currently uses deterministic curated seeds; live search API integration is deferred.
-5. V4 must preserve upload mode while extending auto/hybrid modes.
+5. V5 uses deterministic hashing embeddings first; model-backed embeddings are deferred.
 ```
 
 ## Recovery Note
@@ -102,6 +112,6 @@ If this file is being read after context loss, continue with:
 
 ```text
 1. Confirm current git status.
-2. If V4 is not committed, run full verification and commit/push it.
+2. If V5 is not committed, run full verification and commit/push it.
 3. Keep fixture and deterministic fallbacks available for offline demos.
 ```

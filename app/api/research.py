@@ -24,6 +24,8 @@ class ResearchRunRequest(BaseModel):
     max_chunks: int = 5
     max_sources: int = 3
     allow_live_fetch: bool = False
+    retrieval_mode: str = "hybrid"
+    embedding_dim: int = 256
 
 
 @router.post("/runs")
@@ -46,6 +48,8 @@ def create_research_run(request: ResearchRunRequest):
             "document_ids": request.document_ids,
             "max_sources": request.max_sources,
             "allow_live_fetch": request.allow_live_fetch,
+            "retrieval_mode": request.retrieval_mode,
+            "embedding_dim": request.embedding_dim,
         },
     )
     state = run_research_workflow(
@@ -60,6 +64,8 @@ def create_research_run(request: ResearchRunRequest):
             "max_chunks": request.max_chunks,
             "max_sources": request.max_sources,
             "allow_live_fetch": request.allow_live_fetch,
+            "retrieval_mode": request.retrieval_mode,
+            "embedding_dim": request.embedding_dim,
             "event_db_path": DB_PATH,
         }
     )

@@ -56,7 +56,7 @@ curl -X POST http://127.0.0.1:8000/research/runs \
 - Deterministic A-share fixture data provider
 - Document upload API for Markdown/txt/PDF materials
 - Public-source discovery for `auto` and `hybrid` research modes
-- Document-driven chunk retrieval before factor extraction
+- Embedding-backed RAG retrieval with `keyword`, `vector`, and `hybrid` modes
 - LangGraph research workflow with explicit agent nodes
 - Node-level SQLite trace for every research run
 - Rule-based factor hypothesis extraction fallback
@@ -104,6 +104,26 @@ curl -s -X POST http://127.0.0.1:8000/research/runs \
   -d '{"research_topic":"A股量价类动量因子","source_mode":"auto","max_sources":2}'
 ```
 
+## V5 Embedding RAG
+
+Chunk retrieval now supports three modes:
+
+```text
+keyword: token-overlap retrieval
+vector: cosine similarity over deterministic hashing embeddings
+hybrid: keyword + vector retrieval with deduplication
+```
+
+The default mode is `hybrid`, so the agent still runs offline without model downloads or API keys while exposing an embedding-backed RAG architecture.
+
+Vector retrieval demo:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/research/runs \
+  -H 'Content-Type: application/json' \
+  -d '{"research_topic":"A股量价类动量因子","source_mode":"auto","retrieval_mode":"vector","embedding_dim":128}'
+```
+
 ## V2 Document-Driven Demo
 
 Upload a document:
@@ -123,4 +143,4 @@ curl -s -X POST http://127.0.0.1:8000/research/runs \
 
 ## Resume Positioning
 
-> Built an A-share factor research agent that discovers public A-share research materials or reads uploaded documents, extracts factor hypotheses, converts them into a restricted Factor DSL, validates them on daily A-share data, and generates traceable factor research reports with IC/RankIC, grouped returns, long-short backtests, and selection rules.
+> Built an A-share factor research agent that discovers public A-share research materials or reads uploaded documents, retrieves evidence with embedding-backed RAG, extracts factor hypotheses, converts them into a restricted Factor DSL, validates them on daily A-share data, and generates traceable factor research reports with IC/RankIC, grouped returns, long-short backtests, and selection rules.
