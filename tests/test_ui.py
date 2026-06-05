@@ -11,6 +11,10 @@ def test_dashboard_index_served():
     assert response.status_code == 200
     assert "A-Share Factor Research Agent" in response.text
     assert 'id="run-form"' in response.text
+    assert 'id="workflow-steps"' in response.text
+    assert 'id="metric-summary"' in response.text
+    assert 'id="source-list"' in response.text
+    assert 'id="metrics-table"' in response.text
     assert "/static/app.js" in response.text
 
 
@@ -21,6 +25,9 @@ def test_dashboard_static_assets_served():
     js_response = client.get("/static/app.js")
 
     assert css_response.status_code == 200
-    assert "Quant Agent Workbench" not in css_response.text
+    assert ".workspace-grid" in css_response.text
+    assert ".summary-grid" in css_response.text
     assert js_response.status_code == 200
+    assert "renderMetricSummary" in js_response.text
+    assert "renderMetrics" in js_response.text
     assert "POST" in js_response.text

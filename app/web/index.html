@@ -7,174 +7,272 @@
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
-    <main class="shell">
-      <section class="workspace">
-        <aside class="control-panel" aria-label="Research run controls">
-          <div class="brand-block">
-            <p class="eyebrow">Quant Agent Workbench</p>
+    <main class="app-shell">
+      <header class="topbar">
+        <div class="identity">
+          <span class="product-mark">AF</span>
+          <div>
+            <p class="eyebrow">A-Share Research Workspace</p>
             <h1>A-Share Factor Research Agent</h1>
-            <p class="summary">
-              Explore public or uploaded factor research, generate restricted Factor DSL,
-              validate on A-share daily data, and inspect the agent trace.
-            </p>
           </div>
+        </div>
+        <div class="topbar-actions">
+          <span id="run-id" class="run-id">No active run</span>
+          <button id="run-button" class="primary-action" type="submit" form="run-form">
+            Run research
+          </button>
+        </div>
+      </header>
 
-          <form id="run-form" class="run-form">
-            <label>
-              Research topic
-              <textarea
-                id="research-topic"
-                name="research_topic"
-                rows="3"
-                required
-              >A股量价类动量因子</textarea>
-            </label>
-
-            <div class="field-grid">
-              <label>
-                Source
-                <select id="source-mode" name="source_mode">
-                  <option value="auto" selected>Auto public sources</option>
-                  <option value="upload">Uploaded document</option>
-                  <option value="hybrid">Hybrid</option>
-                </select>
-              </label>
-
-              <label>
-                Retrieval
-                <select id="retrieval-mode" name="retrieval_mode">
-                  <option value="hybrid" selected>Hybrid RAG</option>
-                  <option value="vector">Vector</option>
-                  <option value="keyword">Keyword</option>
-                </select>
-              </label>
-
-              <label>
-                Extraction
-                <select id="extraction-mode" name="extraction_mode">
-                  <option value="rule" selected>Rule</option>
-                  <option value="hybrid">Hybrid LLM fallback</option>
-                  <option value="llm">LLM with schema</option>
-                </select>
-              </label>
-
-              <label>
-                Data
-                <select id="data-provider" name="data_provider">
-                  <option value="fixture" selected>Fixture</option>
-                  <option value="akshare">AKShare</option>
-                </select>
-              </label>
-
-              <label>
-                Start date
-                <input id="start-date" name="start_date" type="date" value="2020-01-01" />
-              </label>
-
-              <label>
-                End date
-                <input id="end-date" name="end_date" type="date" value="2020-12-31" />
-              </label>
-
-              <label>
-                Max sources
-                <input id="max-sources" name="max_sources" type="number" min="1" max="8" value="2" />
-              </label>
-
-              <label>
-                Max chunks
-                <input id="max-chunks" name="max_chunks" type="number" min="1" max="12" value="5" />
-              </label>
+      <section class="workspace-grid">
+        <aside class="left-panel" aria-label="Research run controls">
+          <section class="panel-section">
+            <div class="section-heading compact">
+              <div>
+                <p class="eyebrow">Input</p>
+                <h2>Research Setup</h2>
+              </div>
+              <span id="status-pill" class="status-pill idle">Ready</span>
             </div>
 
-            <label>
-              Optional document
-              <input id="document-file" name="document" type="file" accept=".md,.txt,.pdf" />
-            </label>
+            <form id="run-form" class="run-form">
+              <label class="field full-span">
+                <span>Research topic</span>
+                <textarea
+                  id="research-topic"
+                  name="research_topic"
+                  rows="4"
+                  required
+                >A股量价类动量因子</textarea>
+              </label>
 
-            <div class="toggle-grid">
-              <label class="checkline">
-                <input id="cache-enabled" type="checkbox" checked />
-                Cache market data
+              <div class="segmented" aria-label="Source mode">
+                <input id="source-auto" name="source_mode_radio" type="radio" value="auto" checked />
+                <label for="source-auto">Auto</label>
+                <input id="source-upload" name="source_mode_radio" type="radio" value="upload" />
+                <label for="source-upload">Upload</label>
+                <input id="source-hybrid" name="source_mode_radio" type="radio" value="hybrid" />
+                <label for="source-hybrid">Hybrid</label>
+              </div>
+
+              <div class="field-grid">
+                <label class="field">
+                  <span>Retrieval</span>
+                  <select id="retrieval-mode" name="retrieval_mode">
+                    <option value="hybrid" selected>Hybrid RAG</option>
+                    <option value="vector">Vector</option>
+                    <option value="keyword">Keyword</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>Extraction</span>
+                  <select id="extraction-mode" name="extraction_mode">
+                    <option value="rule" selected>Rule</option>
+                    <option value="hybrid">Hybrid</option>
+                    <option value="llm">LLM schema</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>Data</span>
+                  <select id="data-provider" name="data_provider">
+                    <option value="fixture" selected>Fixture</option>
+                    <option value="akshare">AKShare</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>Universe</span>
+                  <input id="universe" name="universe" value="CSI300" />
+                </label>
+
+                <label class="field">
+                  <span>Start date</span>
+                  <input id="start-date" name="start_date" type="date" value="2020-01-01" />
+                </label>
+
+                <label class="field">
+                  <span>End date</span>
+                  <input id="end-date" name="end_date" type="date" value="2020-12-31" />
+                </label>
+
+                <label class="field">
+                  <span>Max sources</span>
+                  <input id="max-sources" name="max_sources" type="number" min="1" max="8" value="2" />
+                </label>
+
+                <label class="field">
+                  <span>Max chunks</span>
+                  <input id="max-chunks" name="max_chunks" type="number" min="1" max="12" value="5" />
+                </label>
+              </div>
+
+              <label class="upload-drop">
+                <span>Optional document</span>
+                <strong id="upload-label">Drop or choose Markdown, txt, PDF</strong>
+                <input id="document-file" name="document" type="file" accept=".md,.txt,.pdf" />
               </label>
-              <label class="checkline">
-                <input id="fallback-to-fixture" type="checkbox" checked />
-                Fallback to fixture
-              </label>
-              <label class="checkline">
-                <input id="enable-llm" type="checkbox" />
-                Enable LLM extraction
-              </label>
-              <label class="checkline">
-                <input id="allow-live-fetch" type="checkbox" />
-                Allow live source fetch
-              </label>
+
+              <div class="toggle-stack">
+                <label class="switchline">
+                  <input id="cache-enabled" type="checkbox" checked />
+                  <span>Cache market data</span>
+                </label>
+                <label class="switchline">
+                  <input id="fallback-to-fixture" type="checkbox" checked />
+                  <span>Fallback to fixture</span>
+                </label>
+                <label class="switchline">
+                  <input id="enable-llm" type="checkbox" />
+                  <span>Enable LLM extraction</span>
+                </label>
+                <label class="switchline">
+                  <input id="allow-live-fetch" type="checkbox" />
+                  <span>Allow live source fetch</span>
+                </label>
+              </div>
+            </form>
+          </section>
+
+          <section class="panel-section compact-card">
+            <p class="eyebrow">Current Run</p>
+            <div id="run-config" class="config-list">
+              <span>Source: auto</span>
+              <span>Retrieval: hybrid</span>
+              <span>Extraction: rule</span>
+              <span>Data: fixture</span>
             </div>
-
-            <button id="run-button" class="primary-action" type="submit">
-              Run research
-            </button>
-          </form>
+          </section>
         </aside>
 
-        <section class="results-panel" aria-live="polite">
-          <div class="status-row">
-            <div>
-              <p class="eyebrow">Run Status</p>
-              <h2 id="status-title">Ready</h2>
-            </div>
-            <span id="run-id" class="run-id">No run yet</span>
-          </div>
-
+        <section class="main-panel" aria-live="polite">
           <div id="error-box" class="error-box hidden"></div>
 
-          <div class="metric-strip">
+          <section class="hero-panel">
             <div>
-              <span class="metric-label">Selected</span>
-              <strong id="selected-count">0</strong>
+              <p class="eyebrow">Research Output</p>
+              <h2 id="status-title">Ready to run factor research</h2>
+              <p id="status-copy" class="muted-copy">
+                Configure the research task, run the workflow, then review factors, metrics,
+                generated report, and trace evidence in one place.
+              </p>
             </div>
-            <div>
-              <span class="metric-label">Factors</span>
-              <strong id="factor-count">0</strong>
+            <div class="metric-strip">
+              <div class="metric-tile">
+                <span class="metric-label">Selected</span>
+                <strong id="selected-count">0</strong>
+              </div>
+              <div class="metric-tile">
+                <span class="metric-label">Factors</span>
+                <strong id="factor-count">0</strong>
+              </div>
+              <div class="metric-tile">
+                <span class="metric-label">Trace events</span>
+                <strong id="event-count">0</strong>
+              </div>
             </div>
-            <div>
-              <span class="metric-label">Trace events</span>
-              <strong id="event-count">0</strong>
-            </div>
-          </div>
-
-          <section class="section-block">
-            <div class="section-heading">
-              <h3>Selected Factors</h3>
-            </div>
-            <div id="selected-factors" class="chip-row empty-state">Run the agent to see selected factors.</div>
           </section>
 
-          <section class="section-block">
-            <div class="section-heading">
-              <h3>Factor DSL</h3>
-            </div>
-            <div id="factor-list" class="factor-list empty-state">No generated formulas yet.</div>
-          </section>
+          <section class="content-grid">
+            <article class="result-card summary-card wide-card">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Backtest Snapshot</p>
+                  <h3>Signal Quality</h3>
+                </div>
+              </div>
+              <div id="metric-summary" class="summary-grid empty-state">
+                Run the workflow to see signal quality.
+              </div>
+            </article>
 
-          <section class="section-block">
-            <div class="tab-row" role="tablist" aria-label="Run details">
-              <button class="tab-button active" type="button" data-tab="report">Report</button>
-              <button class="tab-button" type="button" data-tab="trace">Trace</button>
-              <button class="tab-button" type="button" data-tab="raw">Raw</button>
-            </div>
+            <article class="result-card source-card">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Evidence</p>
+                  <h3>Source Coverage</h3>
+                </div>
+              </div>
+              <div id="source-list" class="source-list empty-state">
+                Run the workflow to see source coverage.
+              </div>
+            </article>
 
-            <div id="report-tab" class="tab-panel active">
-              <pre id="report-output" class="report-output">Report will appear here after a run.</pre>
-            </div>
-            <div id="trace-tab" class="tab-panel">
-              <ol id="trace-list" class="trace-list"></ol>
-            </div>
-            <div id="raw-tab" class="tab-panel">
-              <pre id="raw-output" class="report-output">{}</pre>
-            </div>
+            <article class="result-card selected-card">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Selection</p>
+                  <h3>Selected Factors</h3>
+                </div>
+              </div>
+              <div id="selected-factors" class="chip-row empty-state">
+                Run the workflow to see selected factors.
+              </div>
+            </article>
+
+            <article class="result-card metrics-card">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Formula Layer</p>
+                  <h3>Factor DSL</h3>
+                </div>
+              </div>
+              <div id="factor-list" class="factor-list empty-state">No generated formulas yet.</div>
+            </article>
+
+            <article class="result-card">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Validation</p>
+                  <h3>Backtest Metrics</h3>
+                </div>
+              </div>
+              <div id="metrics-table" class="table-wrap empty-state">No metrics available yet.</div>
+            </article>
+
+            <article class="result-card report-card">
+              <div class="tab-row" role="tablist" aria-label="Run details">
+                <button class="tab-button active" type="button" data-tab="report">Report</button>
+                <button class="tab-button" type="button" data-tab="trace">Trace</button>
+                <button class="tab-button" type="button" data-tab="raw">Raw</button>
+              </div>
+
+              <div id="report-tab" class="tab-panel active">
+                <pre id="report-output" class="report-output">Report will appear here after a run.</pre>
+              </div>
+              <div id="trace-tab" class="tab-panel">
+                <ol id="trace-list" class="trace-list"></ol>
+              </div>
+              <div id="raw-tab" class="tab-panel">
+                <pre id="raw-output" class="report-output">{}</pre>
+              </div>
+            </article>
           </section>
         </section>
+
+        <aside class="right-panel" aria-label="Workflow trace summary">
+          <section class="panel-section">
+            <div class="section-heading compact">
+              <div>
+                <p class="eyebrow">Agent Trace</p>
+                <h2>Workflow</h2>
+              </div>
+            </div>
+            <ol id="workflow-steps" class="workflow-steps">
+              <li data-node="LoadDocumentsNode"><span></span>Load documents</li>
+              <li data-node="RetrieveChunksNode"><span></span>Retrieve chunks</li>
+              <li data-node="ExtractHypothesesNode"><span></span>Extract hypotheses</li>
+              <li data-node="GenerateFactorDSLNode"><span></span>Generate DSL</li>
+              <li data-node="ValidateDSLNode"><span></span>Validate DSL</li>
+              <li data-node="LoadMarketDataNode"><span></span>Load market data</li>
+              <li data-node="ExecuteFactorsNode"><span></span>Execute factors</li>
+              <li data-node="RunBacktestNode"><span></span>Run backtest</li>
+              <li data-node="SelectFactorsNode"><span></span>Select factors</li>
+              <li data-node="GenerateReportNode"><span></span>Generate report</li>
+            </ol>
+          </section>
+        </aside>
       </section>
     </main>
     <script src="/static/app.js"></script>

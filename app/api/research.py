@@ -103,5 +103,6 @@ def create_research_run(request: ResearchRunRequest):
         "status": "completed",
         "selected_factors": state.get("selected_factors", []),
         "factor_specs": state.get("factor_specs", []),
+        "metrics": state.get("metrics", []),
         "report_markdown": state["report_markdown"],
     }

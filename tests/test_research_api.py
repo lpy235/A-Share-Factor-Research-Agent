@@ -25,10 +25,12 @@ def test_research_api_returns_v2_compatible_response_and_node_trace():
         "status",
         "selected_factors",
         "factor_specs",
+        "metrics",
         "report_markdown",
     }
     assert body["status"] == "completed"
     assert body["selected_factors"] == ["volume_price_momentum"]
+    assert body["metrics"][0]["factor_name"] == "volume_price_momentum"
 
     events_response = client.get(f"/runs/{body['run_id']}/events")
     assert events_response.status_code == 200

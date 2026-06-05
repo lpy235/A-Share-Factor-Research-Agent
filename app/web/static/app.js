@@ -1,39 +1,60 @@
 const form = document.querySelector("#run-form");
 const runButton = document.querySelector("#run-button");
 const statusTitle = document.querySelector("#status-title");
+const statusCopy = document.querySelector("#status-copy");
+const statusPill = document.querySelector("#status-pill");
 const runIdEl = document.querySelector("#run-id");
 const errorBox = document.querySelector("#error-box");
 const selectedCount = document.querySelector("#selected-count");
 const factorCount = document.querySelector("#factor-count");
 const eventCount = document.querySelector("#event-count");
+const metricSummary = document.querySelector("#metric-summary");
+const sourceList = document.querySelector("#source-list");
 const selectedFactors = document.querySelector("#selected-factors");
 const factorList = document.querySelector("#factor-list");
+const metricsTable = document.querySelector("#metrics-table");
 const reportOutput = document.querySelector("#report-output");
 const traceList = document.querySelector("#trace-list");
 const rawOutput = document.querySelector("#raw-output");
+const runConfig = document.querySelector("#run-config");
+const uploadInput = document.querySelector("#document-file");
+const uploadLabel = document.querySelector("#upload-label");
+const workflowSteps = document.querySelectorAll("#workflow-steps li");
 
 let currentRun = null;
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   clearError();
+  resetWorkflow();
   setLoading(true);
-  setStatus("Running research");
+  setStatus("Running research", "The agent is collecting evidence, generating factors, and validating the run.", "running");
 
   try {
     const documentIds = await uploadDocumentIfNeeded();
     const payload = buildRunPayload(documentIds);
+    renderRunConfig(payload);
     const run = await postJson("/research/runs", payload);
     currentRun = run;
     renderRun(run);
     await loadTrace(run.run_id);
-    setStatus("Completed");
+    setStatus("Research run completed", "Review the selected factors, validation metrics, report, and trace evidence below.", "done");
   } catch (error) {
     showError(error.message || "Run failed");
-    setStatus("Failed");
+    setStatus("Run failed", "The workflow stopped before producing a complete result.", "failed");
   } finally {
     setLoading(false);
   }
+});
+
+uploadInput.addEventListener("change", () => {
+  uploadLabel.textContent = uploadInput.files.length
+    ? uploadInput.files[0].name
+    : "Drop or choose Markdown, txt, PDF";
+});
+
+document.querySelectorAll("input, select, textarea").forEach((control) => {
+  control.addEventListener("change", () => renderRunConfig(buildRunPayload([])));
 });
 
 document.querySelectorAll(".tab-button").forEach((button) => {
@@ -48,12 +69,14 @@ document.querySelectorAll(".tab-button").forEach((button) => {
   });
 });
 
+renderRunConfig(buildRunPayload([]));
+
 function buildRunPayload(documentIds) {
   return {
     research_topic: valueOf("#research-topic"),
-    source_mode: valueOf("#source-mode"),
+    source_mode: selectedRadioValue("source_mode_radio"),
     document_ids: documentIds,
-    universe: "CSI300",
+    universe: valueOf("#universe"),
     start_date: valueOf("#start-date"),
     end_date: valueOf("#end-date"),
     max_chunks: numberOf("#max-chunks"),
@@ -72,13 +95,12 @@ function buildRunPayload(documentIds) {
 }
 
 async function uploadDocumentIfNeeded() {
-  const fileInput = document.querySelector("#document-file");
-  if (!fileInput.files.length) {
+  if (!uploadInput.files.length) {
     return [];
   }
 
   const data = new FormData();
-  data.append("file", fileInput.files[0]);
+  data.append("file", uploadInput.files[0]);
   const response = await fetch("/documents", {
     method: "POST",
     body: data,
@@ -109,6 +131,7 @@ async function loadTrace(runId) {
   }
   const body = await response.json();
   renderTrace(body.events || []);
+  updateWorkflow(body.events || []);
 }
 
 function renderRun(run) {
@@ -125,23 +148,174 @@ function renderRun(run) {
     ? run.factor_specs.map(renderFactor).join("")
     : "No generated formulas.";
 
+  const metrics = Array.isArray(run.metrics) ? run.metrics : extractMetrics(run.report_markdown);
+  renderMetricSummary(metrics);
+  renderMetrics(metrics);
+  renderSources(run.factor_specs);
   reportOutput.textContent = run.report_markdown || "No report returned.";
   rawOutput.textContent = JSON.stringify(run, null, 2);
 }
 
 function renderFactor(factor) {
-  const selected = currentRun?.selected_factors?.includes(factor.factor_name) ? "Selected" : "Candidate";
+  const selected = currentRun?.selected_factors?.includes(factor.factor_name);
+  const badgeClass = selected ? "factor-badge selected" : "factor-badge";
+  const badgeText = selected ? "Selected" : "Candidate";
   return `
     <article class="factor-item">
       <div class="factor-name">
         <span>${escapeHtml(factor.factor_name)}</span>
-        <span>${selected}</span>
+        <span class="${badgeClass}">${badgeText}</span>
       </div>
       <code class="formula">${escapeHtml(factor.formula || "")}</code>
       <p class="factor-meta">${escapeHtml(factor.hypothesis || "")}</p>
       <p class="factor-meta">Source: ${escapeHtml(factor.source_title || "unknown")}</p>
     </article>
   `;
+}
+
+function renderMetrics(metrics) {
+  metricsTable.classList.toggle("empty-state", metrics.length === 0);
+  if (!metrics.length) {
+    metricsTable.innerHTML = "No metrics available yet.";
+    return;
+  }
+
+  metricsTable.innerHTML = `
+    <table class="metrics-table">
+      <thead>
+        <tr>
+          <th>Factor</th>
+          <th>Rank IC</th>
+          <th>ICIR</th>
+          <th>Coverage</th>
+          <th>Missing</th>
+          <th>Drawdown</th>
+          <th>Sharpe</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${metrics
+          .map(
+            (metric) => `
+              <tr>
+                <td>${escapeHtml(metric.factor_name || "")}</td>
+                <td>${escapeHtml(metric.mean_rank_ic || "")}</td>
+                <td>${escapeHtml(metric.icir || "")}</td>
+                <td>${escapeHtml(metric.coverage_ratio || "")}</td>
+                <td>${escapeHtml(metric.missing_ratio || "")}</td>
+                <td>${escapeHtml(metric.max_drawdown || "")}</td>
+                <td>${escapeHtml(metric.sharpe || "")}</td>
+              </tr>
+            `,
+          )
+          .join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function renderMetricSummary(metrics) {
+  metricSummary.classList.toggle("empty-state", metrics.length === 0);
+  if (!metrics.length) {
+    metricSummary.innerHTML = "Run the workflow to see signal quality.";
+    return;
+  }
+
+  const bestRankIc = bestMetric(metrics, "mean_rank_ic");
+  const bestIcir = bestMetric(metrics, "icir");
+  const bestCoverage = bestMetric(metrics, "coverage_ratio");
+  const bestSharpe = bestMetric(metrics, "sharpe");
+  metricSummary.innerHTML = [
+    renderSummaryItem("Best Rank IC", bestRankIc, "mean_rank_ic"),
+    renderSummaryItem("Best ICIR", bestIcir, "icir"),
+    renderSummaryItem("Coverage", bestCoverage, "coverage_ratio"),
+    renderSummaryItem("Sharpe", bestSharpe, "sharpe"),
+  ].join("");
+}
+
+function renderSummaryItem(label, metric, key) {
+  const value = metric ? formatMetric(metric[key]) : "-";
+  const factor = metric?.factor_name || "No factor";
+  return `
+    <div class="summary-item">
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(value)}</strong>
+      <small>${escapeHtml(factor)}</small>
+    </div>
+  `;
+}
+
+function renderSources(factors) {
+  const sourceMap = new Map();
+  factors.forEach((factor) => {
+    const title = factor.source_title || "Unknown source";
+    const url = factor.source_url || "";
+    const key = `${title}|${url}`;
+    const source = sourceMap.get(key) || {
+      title,
+      url,
+      factors: [],
+    };
+    source.factors.push(factor.factor_name);
+    sourceMap.set(key, source);
+  });
+  const sources = [...sourceMap.values()];
+  sourceList.classList.toggle("empty-state", sources.length === 0);
+  sourceList.innerHTML = sources.length
+    ? sources.map(renderSource).join("")
+    : "Run the workflow to see source coverage.";
+}
+
+function renderSource(source) {
+  const title = escapeHtml(source.title);
+  const url = escapeHtml(source.url || "Local source");
+  const factorText = `${source.factors.length} factor${source.factors.length === 1 ? "" : "s"}`;
+  return `
+    <div class="source-row">
+      <div>
+        <strong>${title}</strong>
+        <span>${url}</span>
+      </div>
+      <em>${escapeHtml(factorText)}</em>
+    </div>
+  `;
+}
+
+function bestMetric(metrics, key) {
+  return metrics.reduce((best, metric) => {
+    const value = Math.abs(Number.parseFloat(metric[key]));
+    if (Number.isNaN(value)) {
+      return best;
+    }
+    if (!best || value > Math.abs(Number.parseFloat(best[key]))) {
+      return metric;
+    }
+    return best;
+  }, null);
+}
+
+function formatMetric(value) {
+  const number = Number.parseFloat(value);
+  if (Number.isNaN(number)) {
+    return value == null ? "-" : String(value);
+  }
+  return number.toFixed(3);
+}
+
+function extractMetrics(report) {
+  if (!report) {
+    return [];
+  }
+  return report
+    .split("\n")
+    .filter((line) => line.startsWith("- factor_name="))
+    .map((line) => {
+      const pairs = line
+        .replace(/^- /, "")
+        .split(", ")
+        .map((item) => item.split("="));
+      return Object.fromEntries(pairs);
+    });
 }
 
 function renderTrace(events) {
@@ -161,13 +335,47 @@ function renderEvent(event) {
   `;
 }
 
+function updateWorkflow(events) {
+  const completedNodes = new Set(
+    events.filter((event) => event.event_type === "node_completed").map((event) => event.node),
+  );
+  const failedNodes = new Set(
+    events.filter((event) => event.event_type === "node_failed").map((event) => event.node),
+  );
+  workflowSteps.forEach((step) => {
+    const node = step.dataset.node;
+    step.classList.toggle("done", completedNodes.has(node));
+    step.classList.toggle("failed", failedNodes.has(node));
+  });
+}
+
+function resetWorkflow() {
+  workflowSteps.forEach((step) => {
+    step.classList.remove("done", "failed");
+  });
+  eventCount.textContent = "0";
+}
+
+function renderRunConfig(payload) {
+  runConfig.innerHTML = `
+    <span>Source: ${escapeHtml(payload.source_mode)}</span>
+    <span>Retrieval: ${escapeHtml(payload.retrieval_mode)}</span>
+    <span>Extraction: ${escapeHtml(payload.extraction_mode)}</span>
+    <span>Data: ${escapeHtml(payload.data_provider)}</span>
+    <span>Window: ${escapeHtml(payload.start_date)} to ${escapeHtml(payload.end_date)}</span>
+  `;
+}
+
 function setLoading(isLoading) {
   runButton.disabled = isLoading;
   runButton.textContent = isLoading ? "Running..." : "Run research";
 }
 
-function setStatus(text) {
-  statusTitle.textContent = text;
+function setStatus(title, copy, mode) {
+  statusTitle.textContent = title;
+  statusCopy.textContent = copy;
+  statusPill.textContent = mode === "done" ? "Completed" : title.split(" ")[0];
+  statusPill.className = `status-pill ${mode || "idle"}`;
 }
 
 function showError(message) {
@@ -192,6 +400,10 @@ function checked(selector) {
   return document.querySelector(selector).checked;
 }
 
+function selectedRadioValue(name) {
+  return document.querySelector(`input[name="${name}"]:checked`).value;
+}
+
 async function responseText(response, fallback) {
   const text = await response.text();
   return text || fallback;
@@ -205,4 +417,3 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
-
