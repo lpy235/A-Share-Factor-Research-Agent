@@ -78,9 +78,10 @@ python -m compileall app
 Latest verified result:
 
 ```text
-pytest -v                 53 passed
-python evals/run_eval.py  accuracy 1.0
-python -m compileall app  passed
+.venv/bin/pytest -v       60 passed, 1 warning
+.venv/bin/python evals/run_eval.py  accuracy 1.0
+.venv/bin/python -m compileall app  passed
+git diff --check          passed
 ```
 
 ## V3 LangGraph Agent Workflow
@@ -170,10 +171,29 @@ curl -s -X POST http://127.0.0.1:8000/research/runs \
   -d '{"research_topic":"A股量价类动量因子","source_mode":"auto","extraction_mode":"rule"}'
 ```
 
+## V7 Real Data Cache Mode
+
+V7 adds configurable A-share daily data loading:
+
+```text
+fixture: deterministic local demo data
+akshare: optional live public A-share daily data adapter
+```
+
+The workflow records `market_data_summary` and `market_data_diagnostics` in the LangGraph trace. Cache-enabled runs store per-symbol daily bars as CSV files under `data_cache/` by default, and AKShare failures can fall back to fixture data when `fallback_to_fixture=true`.
+
+Example deterministic request:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/research/runs \
+  -H 'Content-Type: application/json' \
+  -d '{"research_topic":"A股量价类动量因子","source_mode":"auto","data_provider":"fixture","cache_enabled":true}'
+```
+
 ## Limitations
 
-- Fixture data is used for deterministic demo execution.
-- Live AKShare data is implemented as an adapter but not required by tests.
+- Fixture data remains the default for deterministic demo execution.
+- Live AKShare data is optional, cache-backed, and not required by tests.
 - Public-source discovery uses curated deterministic seeds by default; live fetch is optional.
 - Embeddings use a deterministic hashing backend by default; model-backed embeddings are deferred.
 - LLM extraction is optional and schema-validated; deterministic fallback keeps the project working without API keys.
@@ -183,4 +203,4 @@ curl -s -X POST http://127.0.0.1:8000/research/runs \
 
 - Replace hashing embeddings with optional sentence-transformers or ChromaDB.
 - Replace curated public-source seeds with a real search API integration.
-- Add real AKShare demo mode and data caching.
+- Add a portfolio-level web UI for reviewing sources, extracted factors, trace events, and backtest reports.

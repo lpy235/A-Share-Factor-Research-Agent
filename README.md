@@ -10,7 +10,7 @@ This repository is being built as a quant strategy / AI Agent internship portfol
 public/uploaded research material
 -> factor hypothesis extraction
 -> restricted Factor DSL
--> A-share daily data
+-> A-share daily data with optional cache
 -> IC / RankIC / grouped returns / long-short backtest
 -> factor selection
 -> traceable Markdown report
@@ -58,6 +58,7 @@ curl -X POST http://127.0.0.1:8000/research/runs \
 - Public-source discovery for `auto` and `hybrid` research modes
 - Embedding-backed RAG retrieval with `keyword`, `vector`, and `hybrid` modes
 - Structured LLM factor extraction with schema validation and deterministic fallback
+- Optional AKShare daily-data mode with local CSV cache and fixture fallback
 - LangGraph research workflow with explicit agent nodes
 - Node-level SQLite trace for every research run
 - Rule-based factor hypothesis extraction fallback
@@ -145,6 +146,35 @@ curl -s -X POST http://127.0.0.1:8000/research/runs \
   -d '{"research_topic":"A股量价类动量因子","source_mode":"auto","extraction_mode":"rule"}'
 ```
 
+## V7 Real Data Cache Mode
+
+Market data loading now supports:
+
+```text
+data_provider: fixture | akshare
+cache_enabled: true | false
+fallback_to_fixture: true | false
+market_data_cache_dir: local CSV cache directory, default data_cache
+```
+
+The default remains `fixture`, so tests and demos stay deterministic. `akshare` is optional and live: if the package, network, or public endpoint is unavailable, the workflow falls back to fixture data when `fallback_to_fixture=true`. The cache stores per-symbol daily bars under `data_cache/`, which is ignored by git.
+
+Deterministic cached fixture demo:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/research/runs \
+  -H 'Content-Type: application/json' \
+  -d '{"research_topic":"A股量价类动量因子","source_mode":"auto","data_provider":"fixture","cache_enabled":true}'
+```
+
+Optional AKShare demo:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/research/runs \
+  -H 'Content-Type: application/json' \
+  -d '{"research_topic":"A股量价类动量因子","source_mode":"auto","data_provider":"akshare","cache_enabled":true,"fallback_to_fixture":true}'
+```
+
 ## V2 Document-Driven Demo
 
 Upload a document:
@@ -164,4 +194,4 @@ curl -s -X POST http://127.0.0.1:8000/research/runs \
 
 ## Resume Positioning
 
-> Built an A-share factor research agent that discovers public A-share research materials or reads uploaded documents, retrieves evidence with embedding-backed RAG, extracts schema-validated factor hypotheses with LLM fallback controls, converts them into a restricted Factor DSL, validates them on daily A-share data, and generates traceable factor research reports with IC/RankIC, grouped returns, long-short backtests, and selection rules.
+> Built an A-share factor research agent that discovers public A-share research materials or reads uploaded documents, retrieves evidence with embedding-backed RAG, extracts schema-validated factor hypotheses with LLM fallback controls, converts them into a restricted Factor DSL, validates them on cached fixture or optional AKShare daily A-share data, and generates traceable factor research reports with IC/RankIC, grouped returns, long-short backtests, and selection rules.

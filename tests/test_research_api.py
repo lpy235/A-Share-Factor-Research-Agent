@@ -105,3 +105,24 @@ def test_research_api_accepts_extraction_controls():
     assert response.status_code == 200
     body = response.json()
     assert "volume_price_momentum" in body["selected_factors"]
+
+
+def test_research_api_accepts_data_provider_controls(tmp_path):
+    client = TestClient(app)
+
+    response = client.post(
+        "/research/runs",
+        json={
+            "research_topic": "A股量价类动量因子",
+            "source_mode": "auto",
+            "data_provider": "fixture",
+            "cache_enabled": True,
+            "fallback_to_fixture": True,
+            "market_data_cache_dir": str(tmp_path),
+            "max_sources": 2,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "volume_price_momentum" in body["selected_factors"]

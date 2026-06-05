@@ -6,5 +6,6 @@ __pycache__/
 .env
 runs.db
 uploaded_docs/
+data_cache/
 logs/
 demo_artifacts/*.png

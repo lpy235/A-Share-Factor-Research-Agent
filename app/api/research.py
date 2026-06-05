@@ -29,6 +29,10 @@ class ResearchRunRequest(BaseModel):
     extraction_mode: str = "hybrid"
     enable_llm_extraction: bool = False
     llm_retry_count: int = 1
+    data_provider: str = "fixture"
+    cache_enabled: bool = True
+    fallback_to_fixture: bool = True
+    market_data_cache_dir: str = "data_cache"
 
 
 @router.post("/runs")
@@ -56,6 +60,9 @@ def create_research_run(request: ResearchRunRequest):
             "extraction_mode": request.extraction_mode,
             "enable_llm_extraction": request.enable_llm_extraction,
             "llm_retry_count": request.llm_retry_count,
+            "data_provider": request.data_provider,
+            "cache_enabled": request.cache_enabled,
+            "fallback_to_fixture": request.fallback_to_fixture,
         },
     )
     state = run_research_workflow(
@@ -75,6 +82,10 @@ def create_research_run(request: ResearchRunRequest):
             "extraction_mode": request.extraction_mode,
             "enable_llm_extraction": request.enable_llm_extraction,
             "llm_retry_count": request.llm_retry_count,
+            "data_provider": request.data_provider,
+            "cache_enabled": request.cache_enabled,
+            "fallback_to_fixture": request.fallback_to_fixture,
+            "market_data_cache_dir": request.market_data_cache_dir,
             "event_db_path": DB_PATH,
         }
     )

@@ -3,7 +3,7 @@
 ## Current Phase
 
 ```text
-V6 complete
+V7 verification passed, commit/push pending
 ```
 
 ## Workspace
@@ -97,14 +97,25 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 - [x] `python evals/run_eval.py` passed with 5/5 correct and accuracy 1.0.
 - [x] `python -m compileall app` passed after V6.
 - [x] V6 committed and pushed.
+- [x] V7 real A-share data/cache design spec written.
+- [x] V7 real A-share data/cache implementation plan written.
+- [x] Daily bar CSV cache implemented.
+- [x] Data provider factory and cached provider wrapper implemented.
+- [x] `data_provider`, `cache_enabled`, `fallback_to_fixture`, and `market_data_cache_dir` integrated into graph/API.
+- [x] Market data diagnostics integrated into LangGraph node summaries.
+- [x] V7 cache/provider/workflow/API tests added.
+- [x] `pytest -v` passed with 60 tests.
+- [x] `python evals/run_eval.py` passed with 5/5 correct and accuracy 1.0.
+- [x] `python -m compileall app` passed after V7.
+- [x] `git diff --check` passed after V7.
 
 ## In Progress
 
-- [ ] Plan V7 real A-share data mode or optional model-backed embeddings.
+- [ ] Commit and push V7.
 
 ## Next Queue
 
-- [ ] Plan V7 real A-share data mode or optional model-backed embeddings.
+- [ ] Plan V8 portfolio-level web UI or real search API integration.
 
 ## Known Risks
 
@@ -114,6 +125,7 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 3. The workspace path contains spaces, so shell commands must quote paths.
 4. Public-source discovery currently uses deterministic curated seeds; live search API integration is deferred.
 5. V6 keeps LLM extraction optional and falls back deterministically when keys/output are unavailable.
+6. V7 keeps AKShare optional and falls back to fixture data when configured.
 ```
 
 ## Recovery Note
@@ -122,6 +134,6 @@ If this file is being read after context loss, continue with:
 
 ```text
 1. Confirm current git status.
-2. If V6 is not committed, run full verification and commit/push it.
+2. If V7 is not committed, run full verification and commit/push it.
 3. Keep fixture and deterministic fallbacks available for offline demos.
 ```

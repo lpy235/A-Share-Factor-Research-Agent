@@ -16,6 +16,7 @@ from app.backtest.single_factor import (
     grouped_forward_returns,
 )
 from app.data.fixture_provider import FixtureAshareDataProvider
+from app.data.provider_factory import CachedAshareDataProvider, ProviderSelection, select_data_provider
 from app.factor.dsl import FactorSpec
 from app.factor.executor import FactorExecutor
 from app.factor.validator import FactorDslValidator
@@ -116,8 +117,12 @@ def load_market_data_node(state: ResearchState) -> ResearchState:
             "universe": item.get("universe", "CSI300"),
             "start_date": item.get("start_date", "2020-01-01"),
             "end_date": item.get("end_date", "2020-12-31"),
+            "data_provider": item.get("data_provider", "fixture"),
         },
-        lambda item: item.get("market_data_summary", {}),
+        lambda item: {
+            "market_data_summary": item.get("market_data_summary", {}),
+            "market_data_diagnostics": item.get("market_data_diagnostics", {}),
+        },
     )
 
 
@@ -378,27 +383,88 @@ def _validate_dsl(state: ResearchState, tracer: GraphEventTracer) -> ResearchSta
 
 
 def _load_market_data(state: ResearchState, tracer: GraphEventTracer) -> ResearchState:
-    provider = FixtureAshareDataProvider()
-    symbols = provider.get_universe(
-        state.get("universe", "CSI300"),
-        state.get("start_date", "2020-01-01"),
-    )[:20]
-    data = provider.get_daily_bars(
-        symbols=symbols,
-        start_date=state.get("start_date", "2020-01-01"),
-        end_date=state.get("end_date", "2020-12-31"),
+    selection = select_data_provider(
+        provider_name=state.get("data_provider", "fixture"),
+        cache_enabled=state.get("cache_enabled", True),
+        cache_dir=state.get("market_data_cache_dir", "data_cache"),
     )
+    data, symbols, diagnostics = _fetch_market_data_with_fallback(state, selection, tracer)
     if data.empty:
-        raise ValueError("No market data returned by fixture provider")
+        raise ValueError(f"No market data returned by {diagnostics.get('provider')}")
 
     state["_market_data"] = data
+    state["market_data_diagnostics"] = diagnostics
     state["market_data_summary"] = {
+        "provider": diagnostics.get("provider"),
         "symbol_count": len(symbols),
         "row_count": int(len(data)),
         "start_date": str(data.index.get_level_values("date").min().date()),
         "end_date": str(data.index.get_level_values("date").max().date()),
     }
     return state
+
+
+def _fetch_market_data_with_fallback(
+    state: ResearchState,
+    selection: ProviderSelection,
+    tracer: GraphEventTracer,
+) -> tuple[pd.DataFrame, list[str], dict[str, Any]]:
+    diagnostics = dict(selection.diagnostics)
+    try:
+        symbols = selection.provider.get_universe(
+            state.get("universe", "CSI300"),
+            state.get("start_date", "2020-01-01"),
+        )[:20]
+        data = selection.provider.get_daily_bars(
+            symbols=symbols,
+            start_date=state.get("start_date", "2020-01-01"),
+            end_date=state.get("end_date", "2020-12-31"),
+        )
+        diagnostics.update(_cache_diagnostics(selection.provider))
+        if data.empty:
+            raise ValueError("provider_returned_empty_data")
+        diagnostics["fallback_used"] = False
+        return data, symbols, diagnostics
+    except Exception as exc:
+        diagnostics["provider_error"] = str(exc)
+        if selection.provider_name == "fixture" or not state.get("fallback_to_fixture", True):
+            raise
+
+        tracer.node_fallback(
+            "LoadMarketDataNode",
+            {
+                "reason": "data_provider_failed",
+                "provider": selection.provider_name,
+                "fallback_provider": "fixture",
+            },
+        )
+        fixture = FixtureAshareDataProvider()
+        symbols = fixture.get_universe(
+            state.get("universe", "CSI300"),
+            state.get("start_date", "2020-01-01"),
+        )[:20]
+        data = fixture.get_daily_bars(
+            symbols=symbols,
+            start_date=state.get("start_date", "2020-01-01"),
+            end_date=state.get("end_date", "2020-12-31"),
+        )
+        diagnostics.update(
+            {
+                "provider": "fixture",
+                "fallback_used": True,
+                "fallback_reason": "data_provider_failed",
+                "failed_provider": selection.provider_name,
+                "cache_hits": 0,
+                "cache_misses": 0,
+            }
+        )
+        return data, symbols, diagnostics
+
+
+def _cache_diagnostics(provider: Any) -> dict[str, int]:
+    if isinstance(provider, CachedAshareDataProvider):
+        return {"cache_hits": provider.cache_hits, "cache_misses": provider.cache_misses}
+    return {"cache_hits": 0, "cache_misses": 0}
 
 
 def _execute_factors(state: ResearchState, tracer: GraphEventTracer) -> ResearchState:
@@ -485,6 +551,17 @@ def _select_factors(state: ResearchState, tracer: GraphEventTracer) -> ResearchS
 
 def _generate_report(state: ResearchState, tracer: GraphEventTracer) -> ResearchState:
     hypotheses = state.get("hypotheses", [])
+    market_data_diagnostics = state.get("market_data_diagnostics", {})
+    provider = market_data_diagnostics.get("provider", "fixture")
+    if market_data_diagnostics.get("fallback_used"):
+        data_limitation = (
+            f"请求的数据源为 {market_data_diagnostics.get('failed_provider')}，"
+            "因外部数据不可用已回退到 fixture 数据演示完整流程。"
+        )
+    elif provider == "akshare":
+        data_limitation = "当前报告使用 AKShare A 股日线数据；数据可用性取决于公开接口状态。"
+    else:
+        data_limitation = "当前报告使用 fixture 数据演示完整流程。"
     state["report_markdown"] = render_report(
         research_topic=state["research_topic"],
         sources=[
@@ -494,8 +571,8 @@ def _generate_report(state: ResearchState, tracer: GraphEventTracer) -> Research
         factors=state.get("factor_specs", []),
         metrics=state.get("metrics", []),
         limitations=[
-            "当前版本使用 fixture 数据演示完整流程。",
-            "正式研究需要替换为 AKShare/Tushare 等合法 A 股数据源。",
+            data_limitation,
+            "正式研究需要使用合法、稳定、可复现的 A 股数据源。",
             "历史回测不构成投资建议。",
         ],
     )

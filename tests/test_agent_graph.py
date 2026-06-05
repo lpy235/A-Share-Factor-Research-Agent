@@ -110,6 +110,31 @@ def test_workflow_rule_extraction_mode_records_diagnostics():
     assert "volume_price_momentum" in state["selected_factors"]
 
 
+def test_workflow_fixture_data_provider_records_market_diagnostics(tmp_path):
+    state = run_research_workflow(
+        {
+            "run_id": "test_fixture_data_provider",
+            "research_topic": "A股量价类动量因子",
+            "source_mode": "auto",
+            "universe": "CSI300",
+            "start_date": "2020-01-01",
+            "end_date": "2020-12-31",
+            "max_chunks": 5,
+            "max_sources": 2,
+            "allow_live_fetch": False,
+            "data_provider": "fixture",
+            "cache_enabled": True,
+            "market_data_cache_dir": str(tmp_path),
+        }
+    )
+
+    assert state["market_data_summary"]["provider"] == "fixture"
+    assert state["market_data_diagnostics"]["cache_enabled"] is True
+    assert state["market_data_diagnostics"]["cache_misses"] >= 1
+    assert "fixture 数据" in state["report_markdown"]
+    assert "volume_price_momentum" in state["selected_factors"]
+
+
 def test_workflow_hybrid_mode_combines_upload_and_public_sources(tmp_path):
     doc = tmp_path / "factor_note.md"
     doc.write_text("成交量放大且价格上涨，可能代表趋势延续，可构造量价动量因子。", encoding="utf-8")

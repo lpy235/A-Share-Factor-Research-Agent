@@ -19,6 +19,11 @@ class ResearchState(TypedDict, total=False):
     enable_llm_extraction: bool
     llm_retry_count: int
     extraction_diagnostics: dict
+    data_provider: Literal["fixture", "akshare"]
+    cache_enabled: bool
+    fallback_to_fixture: bool
+    market_data_cache_dir: str
+    market_data_diagnostics: dict
     sources: list[dict]
     discovered_sources: list[dict]
     chunks: list[dict]
