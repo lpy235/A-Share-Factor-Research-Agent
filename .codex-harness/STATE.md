@@ -3,7 +3,7 @@
 ## Current Phase
 
 ```text
-V8 complete
+Repository cleanup complete
 ```
 
 ## Workspace
@@ -121,10 +121,20 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 - [x] `git diff --check` passed after V8.
 - [x] Browser dashboard verification passed with deterministic run, 2 selected factors, and 22 trace events.
 - [x] V8 committed and pushed.
+- [x] Repository structure audited.
+- [x] Repository organization docs drafted.
+- [x] Makefile helper commands added.
+- [x] README simplified into a project entry point.
+- [x] Documentation index added.
+- [x] `.gitignore` expanded for common local artifacts.
+- [x] `pytest -v` passed with 62 tests after repository cleanup.
+- [x] `python evals/run_eval.py` passed with 5/5 correct and accuracy 1.0 after repository cleanup.
+- [x] `python -m compileall app` passed after repository cleanup.
+- [x] `git diff --check` passed after repository cleanup.
 
 ## In Progress
 
-- [ ] Plan V9 richer portfolio charts, downloadable artifacts, or real search API integration.
+- [ ] Commit and push repository cleanup.
 
 ## Next Queue
 
@@ -147,6 +157,6 @@ If this file is being read after context loss, continue with:
 
 ```text
 1. Confirm current git status.
-2. If V8 is not committed, run full verification and commit/push it.
+2. If repository cleanup is not committed, run full verification and commit/push it.
 3. Keep fixture and deterministic fallbacks available for offline demos.
 ```

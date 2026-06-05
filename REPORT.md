@@ -4,6 +4,13 @@
 
 A-Share Factor Research Agent is a quant strategy / AI Agent internship portfolio project.
 
+It now has two entry points:
+
+```text
+browser dashboard: http://127.0.0.1:8000/
+JSON API: POST /research/runs
+```
+
 It demonstrates a controlled research loop:
 
 ```text
@@ -232,3 +239,18 @@ console errors/warnings: 0
 - Replace hashing embeddings with optional sentence-transformers or ChromaDB.
 - Replace curated public-source seeds with a real search API integration.
 - Add richer portfolio charts and downloadable experiment artifacts.
+
+## Repository Organization
+
+Current reader-facing docs:
+
+```text
+README.md
+docs/ARCHITECTURE.md
+docs/API.md
+docs/DEMO.md
+docs/DEVELOPMENT.md
+docs/ROADMAP.md
+```
+
+Historical execution records remain under `docs/superpowers/`.

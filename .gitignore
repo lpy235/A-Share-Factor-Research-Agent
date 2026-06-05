@@ -3,6 +3,12 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .ruff_cache/
+.DS_Store
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
 .env
 runs.db
 uploaded_docs/
