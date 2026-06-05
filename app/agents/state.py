@@ -15,6 +15,10 @@ class ResearchState(TypedDict, total=False):
     retrieval_mode: Literal["keyword", "vector", "hybrid"]
     embedding_dim: int
     retrieval_diagnostics: dict
+    extraction_mode: Literal["rule", "llm", "hybrid"]
+    enable_llm_extraction: bool
+    llm_retry_count: int
+    extraction_diagnostics: dict
     sources: list[dict]
     discovered_sources: list[dict]
     chunks: list[dict]

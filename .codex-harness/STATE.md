@@ -3,7 +3,7 @@
 ## Current Phase
 
 ```text
-V5 complete
+V6 complete
 ```
 
 ## Workspace
@@ -87,14 +87,24 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 - [x] `python evals/run_eval.py` passed with 5/5 correct and accuracy 1.0.
 - [x] `python -m compileall app` passed after V5.
 - [x] V5 committed and pushed.
+- [x] V6 structured LLM extraction design spec written.
+- [x] V6 structured LLM extraction implementation plan written.
+- [x] Structured factor extraction service implemented.
+- [x] LLM JSON parsing, schema validation, repair, and fallback implemented.
+- [x] `extraction_mode`, `enable_llm_extraction`, and `llm_retry_count` integrated into graph/API.
+- [x] V6 extraction service, workflow, and API tests added.
+- [x] `pytest -v` passed with 53 tests.
+- [x] `python evals/run_eval.py` passed with 5/5 correct and accuracy 1.0.
+- [x] `python -m compileall app` passed after V6.
+- [x] V6 committed and pushed.
 
 ## In Progress
 
-- [ ] Plan V6 structured LLM extraction or real A-share data mode.
+- [ ] Plan V7 real A-share data mode or optional model-backed embeddings.
 
 ## Next Queue
 
-- [ ] Plan V6 structured LLM extraction or real A-share data mode.
+- [ ] Plan V7 real A-share data mode or optional model-backed embeddings.
 
 ## Known Risks
 
@@ -103,7 +113,7 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 2. Live AKShare and LLM calls may be unavailable.
 3. The workspace path contains spaces, so shell commands must quote paths.
 4. Public-source discovery currently uses deterministic curated seeds; live search API integration is deferred.
-5. V5 uses deterministic hashing embeddings first; model-backed embeddings are deferred.
+5. V6 keeps LLM extraction optional and falls back deterministically when keys/output are unavailable.
 ```
 
 ## Recovery Note
@@ -112,6 +122,6 @@ If this file is being read after context loss, continue with:
 
 ```text
 1. Confirm current git status.
-2. If V5 is not committed, run full verification and commit/push it.
+2. If V6 is not committed, run full verification and commit/push it.
 3. Keep fixture and deterministic fallbacks available for offline demos.
 ```

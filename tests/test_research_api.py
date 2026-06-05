@@ -84,3 +84,24 @@ def test_research_api_supports_vector_retrieval_mode():
     assert response.status_code == 200
     body = response.json()
     assert "volume_price_momentum" in body["selected_factors"]
+
+
+def test_research_api_accepts_extraction_controls():
+    client = TestClient(app)
+
+    response = client.post(
+        "/research/runs",
+        json={
+            "research_topic": "A股量价类动量因子",
+            "source_mode": "auto",
+            "retrieval_mode": "hybrid",
+            "extraction_mode": "rule",
+            "enable_llm_extraction": False,
+            "llm_retry_count": 1,
+            "max_sources": 2,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "volume_price_momentum" in body["selected_factors"]

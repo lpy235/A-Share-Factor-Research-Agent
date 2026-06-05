@@ -26,6 +26,9 @@ class ResearchRunRequest(BaseModel):
     allow_live_fetch: bool = False
     retrieval_mode: str = "hybrid"
     embedding_dim: int = 256
+    extraction_mode: str = "hybrid"
+    enable_llm_extraction: bool = False
+    llm_retry_count: int = 1
 
 
 @router.post("/runs")
@@ -50,6 +53,9 @@ def create_research_run(request: ResearchRunRequest):
             "allow_live_fetch": request.allow_live_fetch,
             "retrieval_mode": request.retrieval_mode,
             "embedding_dim": request.embedding_dim,
+            "extraction_mode": request.extraction_mode,
+            "enable_llm_extraction": request.enable_llm_extraction,
+            "llm_retry_count": request.llm_retry_count,
         },
     )
     state = run_research_workflow(
@@ -66,6 +72,9 @@ def create_research_run(request: ResearchRunRequest):
             "allow_live_fetch": request.allow_live_fetch,
             "retrieval_mode": request.retrieval_mode,
             "embedding_dim": request.embedding_dim,
+            "extraction_mode": request.extraction_mode,
+            "enable_llm_extraction": request.enable_llm_extraction,
+            "llm_retry_count": request.llm_retry_count,
             "event_db_path": DB_PATH,
         }
     )

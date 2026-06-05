@@ -78,7 +78,7 @@ python -m compileall app
 Latest verified result:
 
 ```text
-pytest -v                 47 passed
+pytest -v                 53 passed
 python evals/run_eval.py  accuracy 1.0
 python -m compileall app  passed
 ```
@@ -148,18 +148,39 @@ curl -s -X POST http://127.0.0.1:8000/research/runs \
   -d '{"research_topic":"A股量价类动量因子","source_mode":"auto","retrieval_mode":"vector","embedding_dim":128}'
 ```
 
+## V6 Structured LLM Extraction
+
+V6 adds schema-validated LLM factor extraction while preserving offline deterministic fallback.
+
+Extraction modes:
+
+```text
+rule: deterministic rule extraction only
+llm: try LLM extraction, then fall back to rules
+hybrid: use rules unless enable_llm_extraction=true
+```
+
+The LLM response must validate as a top-level `{"factors": [...]}` JSON object where each item matches `FactorHypothesis`. Invalid JSON or schema failures get one repair attempt, then the workflow falls back to rule extraction and records extraction diagnostics in the graph trace.
+
+Example request:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/research/runs \
+  -H 'Content-Type: application/json' \
+  -d '{"research_topic":"A股量价类动量因子","source_mode":"auto","extraction_mode":"rule"}'
+```
+
 ## Limitations
 
 - Fixture data is used for deterministic demo execution.
 - Live AKShare data is implemented as an adapter but not required by tests.
 - Public-source discovery uses curated deterministic seeds by default; live fetch is optional.
 - Embeddings use a deterministic hashing backend by default; model-backed embeddings are deferred.
-- LLM extraction is represented by deterministic fallback rules so the project works without API keys.
+- LLM extraction is optional and schema-validated; deterministic fallback keeps the project working without API keys.
 - Historical backtests are research artifacts and do not constitute investment advice.
 
 ## Next Steps
 
-- Add live structured LLM extraction with schema validation and retry.
 - Replace hashing embeddings with optional sentence-transformers or ChromaDB.
 - Replace curated public-source seeds with a real search API integration.
 - Add real AKShare demo mode and data caching.

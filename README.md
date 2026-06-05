@@ -57,6 +57,7 @@ curl -X POST http://127.0.0.1:8000/research/runs \
 - Document upload API for Markdown/txt/PDF materials
 - Public-source discovery for `auto` and `hybrid` research modes
 - Embedding-backed RAG retrieval with `keyword`, `vector`, and `hybrid` modes
+- Structured LLM factor extraction with schema validation and deterministic fallback
 - LangGraph research workflow with explicit agent nodes
 - Node-level SQLite trace for every research run
 - Rule-based factor hypothesis extraction fallback
@@ -124,6 +125,26 @@ curl -s -X POST http://127.0.0.1:8000/research/runs \
   -d '{"research_topic":"A股量价类动量因子","source_mode":"auto","retrieval_mode":"vector","embedding_dim":128}'
 ```
 
+## V6 Structured LLM Extraction
+
+Factor hypothesis extraction now supports three modes:
+
+```text
+rule: deterministic rule-based extraction only
+llm: try schema-validated LLM extraction, then fall back to rules
+hybrid: try LLM only when enable_llm_extraction=true, otherwise use rules
+```
+
+LLM extraction is explicit and safe by default. The API default is `hybrid` with `enable_llm_extraction=false`, so the project remains fully runnable without API keys. When enabled, the LLM must return JSON that validates against the `FactorHypothesis` schema; invalid output gets one repair attempt and then falls back to deterministic extraction.
+
+Structured extraction demo without external LLM calls:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/research/runs \
+  -H 'Content-Type: application/json' \
+  -d '{"research_topic":"A股量价类动量因子","source_mode":"auto","extraction_mode":"rule"}'
+```
+
 ## V2 Document-Driven Demo
 
 Upload a document:
@@ -143,4 +164,4 @@ curl -s -X POST http://127.0.0.1:8000/research/runs \
 
 ## Resume Positioning
 
-> Built an A-share factor research agent that discovers public A-share research materials or reads uploaded documents, retrieves evidence with embedding-backed RAG, extracts factor hypotheses, converts them into a restricted Factor DSL, validates them on daily A-share data, and generates traceable factor research reports with IC/RankIC, grouped returns, long-short backtests, and selection rules.
+> Built an A-share factor research agent that discovers public A-share research materials or reads uploaded documents, retrieves evidence with embedding-backed RAG, extracts schema-validated factor hypotheses with LLM fallback controls, converts them into a restricted Factor DSL, validates them on daily A-share data, and generates traceable factor research reports with IC/RankIC, grouped returns, long-short backtests, and selection rules.

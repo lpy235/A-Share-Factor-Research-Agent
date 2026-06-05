@@ -3,6 +3,7 @@ from typing import Any
 
 import pandas as pd
 
+from app.agents.extraction import StructuredFactorExtractor
 from app.agents.graph_events import GraphEventTracer, run_traced_node
 from app.agents.nodes import extract_hypotheses_from_chunks, generate_factor_specs
 from app.agents.schemas import FactorHypothesis
@@ -67,10 +68,15 @@ def extract_hypotheses_node(state: ResearchState) -> ResearchState:
         state,
         "ExtractHypothesesNode",
         _extract_hypotheses,
-        lambda item: {"chunk_count": len(item.get("chunks", []))},
+        lambda item: {
+            "chunk_count": len(item.get("chunks", [])),
+            "extraction_mode": item.get("extraction_mode", "hybrid"),
+            "enable_llm_extraction": item.get("enable_llm_extraction", False),
+        },
         lambda item: {
             "hypothesis_count": len(item.get("hypotheses", [])),
             "factor_names": [hypothesis.get("factor_name") for hypothesis in item.get("hypotheses", [])],
+            "extraction_diagnostics": item.get("extraction_diagnostics", {}),
         },
     )
 
@@ -294,10 +300,32 @@ def _retrieval_diagnostics(
 
 def _extract_hypotheses(state: ResearchState, tracer: GraphEventTracer) -> ResearchState:
     chunks = [_chunk_from_dict(chunk) for chunk in state.get("chunks", [])]
-    hypotheses = extract_hypotheses_from_chunks(state["research_topic"], chunks)
+    extraction = StructuredFactorExtractor().extract(
+        research_topic=state["research_topic"],
+        chunks=chunks,
+        extraction_mode=state.get("extraction_mode", "hybrid"),
+        enable_llm_extraction=state.get("enable_llm_extraction", False),
+        llm_retry_count=state.get("llm_retry_count", 1),
+    )
+    hypotheses = extraction.hypotheses
+    state["extraction_diagnostics"] = extraction.diagnostics
+    if extraction.diagnostics.get("fallback_used"):
+        tracer.node_fallback(
+            "ExtractHypothesesNode",
+            {
+                "reason": extraction.diagnostics.get("fallback_reason") or "llm_fallback",
+                "extraction_mode": extraction.diagnostics.get("extraction_mode"),
+            },
+        )
     if not hypotheses:
         tracer.node_fallback("ExtractHypothesesNode", {"reason": "no_rule_based_hypothesis"})
         hypotheses = extract_hypotheses_from_chunks(state["research_topic"], [_demo_chunk()])
+        state["extraction_diagnostics"] = {
+            **state.get("extraction_diagnostics", {}),
+            "fallback_used": True,
+            "fallback_reason": "demo_hypothesis",
+            "hypothesis_count": len(hypotheses),
+        }
     state["hypotheses"] = [hypothesis.model_dump() for hypothesis in hypotheses]
     return state
 
