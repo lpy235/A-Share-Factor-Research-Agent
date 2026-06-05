@@ -3,7 +3,7 @@
 ## Current Phase
 
 ```text
-V7 verification passed, commit/push pending
+V7 complete
 ```
 
 ## Workspace
@@ -108,10 +108,11 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 - [x] `python evals/run_eval.py` passed with 5/5 correct and accuracy 1.0.
 - [x] `python -m compileall app` passed after V7.
 - [x] `git diff --check` passed after V7.
+- [x] V7 committed and pushed.
 
 ## In Progress
 
-- [ ] Commit and push V7.
+- [ ] Plan V8 portfolio-level web UI or real search API integration.
 
 ## Next Queue
 

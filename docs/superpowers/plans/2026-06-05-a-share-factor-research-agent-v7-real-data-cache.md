@@ -39,4 +39,4 @@
 - [x] Run `pytest -v`.
 - [x] Run `python evals/run_eval.py`.
 - [x] Run `python -m compileall app`.
-- [ ] Commit and push V7.
+- [x] Commit and push V7.
