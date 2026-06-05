@@ -160,7 +160,7 @@ def test_workflow_hybrid_mode_combines_upload_and_public_sources(tmp_path):
     assert "volume_price_momentum" in state["selected_factors"]
 
 
-def test_node_order_is_resume_readable():
+def test_node_order_is_stable_and_readable():
     assert [name for name, _ in NODE_ORDER] == [
         "LoadDocumentsNode",
         "RetrieveChunksNode",

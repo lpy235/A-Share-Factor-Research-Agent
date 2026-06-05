@@ -2,7 +2,7 @@
 
 ## Project
 
-A-Share Factor Research Agent is a quant strategy / AI Agent internship portfolio project.
+A-Share Factor Research Agent is a quant strategy / AI Agent research system.
 
 It now has two entry points:
 
@@ -238,7 +238,7 @@ console errors/warnings: 0
 
 - Replace hashing embeddings with optional sentence-transformers or ChromaDB.
 - Replace curated public-source seeds with a real search API integration.
-- Add richer portfolio charts and downloadable experiment artifacts.
+- Add richer research charts and downloadable experiment artifacts.
 
 ## Repository Organization
 

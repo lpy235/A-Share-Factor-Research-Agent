@@ -2,7 +2,7 @@
 
 ## 1. Project Goal
 
-Build an A-share factor research agent for quant strategy internship portfolios.
+Build an A-share factor research agent for quant strategy research workflows.
 
 The system helps complete a simplified but realistic factor research workflow:
 
@@ -20,11 +20,11 @@ The project is positioned as a research assistant, not an auto-trading system. I
 
 Primary user:
 
-- A student preparing for quant strategy, AI + finance, or Agent internship applications.
+- A student preparing for quant strategy, AI + finance, or Agent research and engineering workflows.
 
 Expected demo user:
 
-- A quant interviewer who wants to see whether the project has real strategy research logic, not just a chatbot wrapper.
+- A quant researcher or engineer who wants to see whether the project has real strategy research logic, not just a chatbot wrapper.
 
 ## 3. Core Positioning
 
@@ -437,7 +437,7 @@ The LLM must not generate arbitrary executable Python. A restricted Factor DSL g
 - Safety.
 - Reproducibility.
 - Formula validation.
-- Clear interview talking points.
+- Clear design rationale.
 - Reduced hallucination risk.
 
 ### 10.2 Allowed Fields
@@ -851,7 +851,7 @@ OpenTelemetry trace
 
 ## 18. Evaluation Design
 
-Create a small evaluation set for internship demo quality.
+Create a small evaluation set for research workflow quality.
 
 File:
 
@@ -981,7 +981,7 @@ Deliver:
 - Run event stream.
 - Charts.
 
-### Milestone 7: Evaluation and Portfolio Packaging
+### Milestone 7: Evaluation and Release Packaging
 
 Deliver:
 
@@ -989,11 +989,11 @@ Deliver:
 - Evaluation runner.
 - README.
 - Demo report.
-- Resume bullet points.
+- Project summaries.
 
-## 21. Resume Positioning
+## 21. Project Summary
 
-Recommended resume bullet:
+Project summary:
 
 ```text
 基于 FastAPI + LangGraph 构建 A 股因子研究 Agent，支持自动检索公开论文/研报或解析用户上传资料，从文本中提取因子假设并转化为受限 Factor DSL；接入 A 股日频行情数据，完成因子计算、IC/RankIC 检验、分层收益、多空回测和因子筛选组合。
@@ -1030,4 +1030,3 @@ LLM provider: OpenAI-compatible wrapper
 UI: API-only first, Streamlit later
 Source search: manual URL list + web search tool
 ```
-

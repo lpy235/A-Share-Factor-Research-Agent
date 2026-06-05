@@ -10,7 +10,7 @@ Build and submit the project to:
 https://github.com/lpy235/A-Share-Factor-Research-Agent
 ```
 
-The project must become a resume-ready quant strategy / AI Agent internship project.
+The project must become a reproducible quant strategy / AI Agent research system.
 
 ## Execution Mode
 

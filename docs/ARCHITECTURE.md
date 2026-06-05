@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This project is an A-share factor research agent for quant strategy internship demos. It turns public or uploaded research material into factor hypotheses, validates the hypotheses through a restricted Factor DSL, runs backtests on A-share daily data, and produces traceable reports.
+This project is an A-share factor research agent for quant strategy research workflows. It turns public or uploaded research material into factor hypotheses, validates the hypotheses through a restricted Factor DSL, runs backtests on A-share daily data, and produces traceable reports.
 
 It is intentionally safe and reproducible by default: fixture market data, rule-based extraction, deterministic hashing embeddings, and curated public sources keep the demo runnable without live services.
 

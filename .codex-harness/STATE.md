@@ -132,14 +132,19 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 - [x] `python -m compileall app` passed after repository cleanup.
 - [x] `git diff --check` passed after repository cleanup.
 - [x] Repository cleanup committed and pushed.
+- [x] Public-facing wording cleaned to remove career-application framing.
+- [x] `pytest -v` passed with 62 tests after wording cleanup.
+- [x] `python evals/run_eval.py` passed with 5/5 correct and accuracy 1.0 after wording cleanup.
+- [x] `python -m compileall app` passed after wording cleanup.
+- [x] Career-framing keyword scan passed after wording cleanup.
 
 ## In Progress
 
-- [ ] Plan V9 richer portfolio charts, downloadable artifacts, or real search API integration.
+- [ ] Commit and push wording cleanup.
 
 ## Next Queue
 
-- [ ] Plan V9 richer portfolio charts, downloadable artifacts, or real search API integration.
+- [ ] Plan V9 richer research charts, downloadable artifacts, or real search API integration.
 
 ## Known Risks
 
@@ -158,6 +163,6 @@ If this file is being read after context loss, continue with:
 
 ```text
 1. Confirm current git status.
-2. If repository cleanup is not committed, run full verification and commit/push it.
+2. If wording cleanup is not committed, run full verification and commit/push it.
 3. Keep fixture and deterministic fallbacks available for offline demos.
 ```

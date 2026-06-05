@@ -186,7 +186,7 @@ Write:
 ```markdown
 # A-Share Factor Research Agent
 
-An A-share factor research agent for quant strategy internship portfolios.
+An A-share factor research agent for quant strategy research workflows.
 
 The system extracts factor hypotheses from public research materials or uploaded documents,
 converts them into a restricted Factor DSL, validates factors with A-share daily data,

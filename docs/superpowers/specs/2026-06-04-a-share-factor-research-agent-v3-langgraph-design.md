@@ -12,7 +12,7 @@ The user-facing API behavior stays compatible with V2:
 - `GET /runs/{run_id}/events` returns the trace.
 - `GET /runs/{run_id}/events/stream` streams the trace.
 
-The internal workflow changes from one large function into a compiled `StateGraph`. Each meaningful research step becomes a node that can be tested, traced, and explained in an internship interview.
+The internal workflow changes from one large function into a compiled `StateGraph`. Each meaningful research step becomes a node that can be tested, traced, and explained in an technical review.
 
 ## 2. Why V3
 

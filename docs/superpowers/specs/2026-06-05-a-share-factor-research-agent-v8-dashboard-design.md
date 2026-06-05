@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build a portfolio-ready web dashboard for running and reviewing the A-share factor research agent from the browser.
+Build a research dashboard for running and reviewing the A-share factor research agent from the browser.
 
 ## Scope
 
@@ -17,7 +17,7 @@ The first screen is the research workspace:
 - A result area with selected factors, generated Factor DSL, validation/backtest metrics when visible in the report, the Markdown report, and node-level trace events.
 - Status and error states for pending, running, completed, and failed runs.
 
-The UI should feel like a quant research workbench, not a landing page. It should be dense, readable, and calm enough for repeated use in an interview demo.
+The UI should feel like a quant research workbench, not a landing page. It should be dense, readable, and calm enough for repeated use in an research review.
 
 ## Architecture
 

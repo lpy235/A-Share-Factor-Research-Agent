@@ -20,7 +20,7 @@ http://127.0.0.1:8000/
 
 Click `Run research` with the default settings.
 
-## What To Show In An Interview
+## Review Checklist
 
 1. The dashboard starts from a realistic quant research topic: `A股量价类动量因子`.
 2. The run uses public or uploaded source material and retrieves evidence.
@@ -58,10 +58,9 @@ curl -s -X POST http://127.0.0.1:8000/research/runs \
   -d '{"research_topic":"A股量价类动量因子","source_mode":"upload","document_ids":["<document_id>"]}'
 ```
 
-## Safety Talking Points
+## Safety Notes
 
 - No auto-trading or order execution.
 - No stock recommendations or return promises.
 - Model output is constrained to schema-validated hypotheses and a whitelisted Factor DSL.
 - Live LLM calls, public fetching, and AKShare data are explicit opt-ins with deterministic fallbacks.
-

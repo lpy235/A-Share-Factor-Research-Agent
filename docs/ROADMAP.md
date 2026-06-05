@@ -2,7 +2,7 @@
 
 ## Current State
 
-The project is a resume-ready MVP:
+The project is a working MVP:
 
 - FastAPI dashboard and JSON APIs
 - LangGraph factor research workflow

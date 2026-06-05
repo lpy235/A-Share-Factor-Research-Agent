@@ -16,7 +16,7 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent
 
 ## Project Pitch
 
-An A-share factor research agent for quant strategy internship portfolios.
+An A-share factor research agent for quant strategy research workflows.
 
 It supports:
 

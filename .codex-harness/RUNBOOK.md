@@ -2,7 +2,7 @@
 
 ## Startup Sequence
 
-At the beginning of every resumed execution:
+At the beginning of every continued execution:
 
 1. Confirm the current working directory:
 
@@ -55,7 +55,7 @@ Stage 0: Harness and repository setup
 Stage 1: Deterministic core MVP
 Stage 2: Workflow, RAG, trace, API events
 Stage 3: Real LangGraph, live LLM extraction, real source search, real A-share demo
-Stage 4: README, REPORT, resume bullets, final verification, push
+Stage 4: README, REPORT, documentation, final verification, push
 ```
 
 ## Commit Policy
@@ -69,7 +69,7 @@ feat: add factor dsl and validation
 feat: add factor execution and backtest metrics
 feat: add research workflow api
 feat: add trace and evaluation harness
-docs: add demo report and resume positioning
+docs: add demo report and project summary
 ```
 
 Do not commit broken code unless the commit is explicitly a work-in-progress checkpoint needed for recovery.
@@ -107,4 +107,3 @@ destructive git conflict requiring user choice
 legal/compliance uncertainty about a data source
 repeated same blocker after 3 repair attempts
 ```
-

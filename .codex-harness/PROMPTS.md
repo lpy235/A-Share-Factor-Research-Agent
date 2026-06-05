@@ -1,6 +1,6 @@
 # Recovery Prompts
 
-## Resume Prompt
+## Continuation Prompt
 
 Use this when context is lost:
 
@@ -37,4 +37,3 @@ Update README.md and REPORT.md.
 Commit stable changes.
 Push to https://github.com/lpy235/A-Share-Factor-Research-Agent.git if auth allows.
 ```
-

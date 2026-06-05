@@ -1,6 +1,6 @@
 # A-Share Factor Research Agent
 
-A resume-ready quant strategy / AI Agent project for A-share factor research.
+A quant strategy / AI Agent research system for A-share factor research.
 
 It reads public or uploaded research material, retrieves factor evidence, extracts factor hypotheses, converts them into a restricted Factor DSL, validates them on A-share daily data, runs factor backtests, selects candidate factors, and renders a traceable research report in a browser dashboard.
 
@@ -101,6 +101,6 @@ curl -s -X POST http://127.0.0.1:8000/research/runs \
 
 Detailed historical specs and implementation plans are kept under `docs/superpowers/`.
 
-## Resume Positioning
+## Project Summary
 
 > Built an A-share factor research agent with a FastAPI dashboard and LangGraph workflow. The system discovers public A-share research materials or reads uploaded documents, retrieves evidence with hybrid RAG, extracts schema-validated factor hypotheses with deterministic fallback, converts them into a restricted Factor DSL, validates them on cached fixture or optional AKShare daily data, and generates traceable factor research reports with IC/RankIC, grouped returns, long-short backtests, and node-level event traces.
