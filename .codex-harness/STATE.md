@@ -131,10 +131,11 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 - [x] `python evals/run_eval.py` passed with 5/5 correct and accuracy 1.0 after repository cleanup.
 - [x] `python -m compileall app` passed after repository cleanup.
 - [x] `git diff --check` passed after repository cleanup.
+- [x] Repository cleanup committed and pushed.
 
 ## In Progress
 
-- [ ] Commit and push repository cleanup.
+- [ ] Plan V9 richer portfolio charts, downloadable artifacts, or real search API integration.
 
 ## Next Queue
 
