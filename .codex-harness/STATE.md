@@ -137,10 +137,11 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 - [x] `python evals/run_eval.py` passed with 5/5 correct and accuracy 1.0 after wording cleanup.
 - [x] `python -m compileall app` passed after wording cleanup.
 - [x] Career-framing keyword scan passed after wording cleanup.
+- [x] Wording cleanup committed and pushed.
 
 ## In Progress
 
-- [ ] Commit and push wording cleanup.
+- [ ] Plan V9 richer research charts, downloadable artifacts, or real search API integration.
 
 ## Next Queue
 
@@ -163,6 +164,6 @@ If this file is being read after context loss, continue with:
 
 ```text
 1. Confirm current git status.
-2. If wording cleanup is not committed, run full verification and commit/push it.
+2. If V9 is not committed, run full verification and commit/push it.
 3. Keep fixture and deterministic fallbacks available for offline demos.
 ```
