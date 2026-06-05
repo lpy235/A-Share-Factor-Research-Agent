@@ -41,6 +41,12 @@ Run the API:
 uvicorn app.main:app --port 8000
 ```
 
+Open the dashboard:
+
+```text
+http://127.0.0.1:8000/
+```
+
 Smoke test:
 
 ```bash
@@ -59,6 +65,7 @@ curl -X POST http://127.0.0.1:8000/research/runs \
 - Embedding-backed RAG retrieval with `keyword`, `vector`, and `hybrid` modes
 - Structured LLM factor extraction with schema validation and deterministic fallback
 - Optional AKShare daily-data mode with local CSV cache and fixture fallback
+- Portfolio dashboard for running research and inspecting factors/reports/traces
 - LangGraph research workflow with explicit agent nodes
 - Node-level SQLite trace for every research run
 - Rule-based factor hypothesis extraction fallback
@@ -175,6 +182,18 @@ curl -s -X POST http://127.0.0.1:8000/research/runs \
   -d '{"research_topic":"A股量价类动量因子","source_mode":"auto","data_provider":"akshare","cache_enabled":true,"fallback_to_fixture":true}'
 ```
 
+## V8 Dashboard
+
+The browser dashboard is served by FastAPI at `/` and uses the existing JSON APIs:
+
+```text
+POST /documents
+POST /research/runs
+GET /runs/{run_id}/events
+```
+
+It is designed as a compact quant research workbench: configure a topic, choose source/retrieval/extraction/data modes, optionally upload a document, run the agent, then inspect selected factors, Factor DSL, Markdown report, raw response, and LangGraph trace events.
+
 ## V2 Document-Driven Demo
 
 Upload a document:
@@ -194,4 +213,4 @@ curl -s -X POST http://127.0.0.1:8000/research/runs \
 
 ## Resume Positioning
 
-> Built an A-share factor research agent that discovers public A-share research materials or reads uploaded documents, retrieves evidence with embedding-backed RAG, extracts schema-validated factor hypotheses with LLM fallback controls, converts them into a restricted Factor DSL, validates them on cached fixture or optional AKShare daily A-share data, and generates traceable factor research reports with IC/RankIC, grouped returns, long-short backtests, and selection rules.
+> Built an A-share factor research agent with a FastAPI dashboard that discovers public A-share research materials or reads uploaded documents, retrieves evidence with embedding-backed RAG, extracts schema-validated factor hypotheses with LLM fallback controls, converts them into a restricted Factor DSL, validates them on cached fixture or optional AKShare daily A-share data, and generates traceable factor research reports with IC/RankIC, grouped returns, long-short backtests, and LangGraph event traces.

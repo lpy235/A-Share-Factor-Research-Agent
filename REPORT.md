@@ -78,10 +78,11 @@ python -m compileall app
 Latest verified result:
 
 ```text
-.venv/bin/pytest -v       60 passed, 1 warning
+.venv/bin/pytest -v       62 passed, 1 warning
 .venv/bin/python evals/run_eval.py  accuracy 1.0
 .venv/bin/python -m compileall app  passed
 git diff --check          passed
+browser dashboard run     completed with 2 selected factors and 22 trace events
 ```
 
 ## V3 LangGraph Agent Workflow
@@ -190,6 +191,32 @@ curl -s -X POST http://127.0.0.1:8000/research/runs \
   -d '{"research_topic":"A股量价类动量因子","source_mode":"auto","data_provider":"fixture","cache_enabled":true}'
 ```
 
+## V8 Dashboard
+
+V8 adds a FastAPI-served dashboard at `/`.
+
+Dashboard workflow:
+
+```text
+configure research topic and modes
+-> optionally upload document
+-> run POST /research/runs
+-> load GET /runs/{run_id}/events
+-> review selected factors, Factor DSL, Markdown report, raw response, and trace events
+```
+
+The dashboard keeps deterministic defaults: `source_mode=auto`, `retrieval_mode=hybrid`, `extraction_mode=rule`, `data_provider=fixture`, and live fetch/LLM calls disabled unless explicitly enabled.
+
+Browser verification result:
+
+```text
+status: Completed
+selected factors: 2
+factor specs: 2
+trace events: 22
+console errors/warnings: 0
+```
+
 ## Limitations
 
 - Fixture data remains the default for deterministic demo execution.
@@ -197,10 +224,11 @@ curl -s -X POST http://127.0.0.1:8000/research/runs \
 - Public-source discovery uses curated deterministic seeds by default; live fetch is optional.
 - Embeddings use a deterministic hashing backend by default; model-backed embeddings are deferred.
 - LLM extraction is optional and schema-validated; deterministic fallback keeps the project working without API keys.
+- The dashboard is intentionally lightweight and uses vanilla browser code served by FastAPI.
 - Historical backtests are research artifacts and do not constitute investment advice.
 
 ## Next Steps
 
 - Replace hashing embeddings with optional sentence-transformers or ChromaDB.
 - Replace curated public-source seeds with a real search API integration.
-- Add a portfolio-level web UI for reviewing sources, extracted factors, trace events, and backtest reports.
+- Add richer portfolio charts and downloadable experiment artifacts.

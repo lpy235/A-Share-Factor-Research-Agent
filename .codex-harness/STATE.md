@@ -3,7 +3,7 @@
 ## Current Phase
 
 ```text
-V7 complete
+V8 dashboard in progress
 ```
 
 ## Workspace
@@ -109,10 +109,21 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 - [x] `python -m compileall app` passed after V7.
 - [x] `git diff --check` passed after V7.
 - [x] V7 committed and pushed.
+- [x] V8 dashboard design spec written.
+- [x] V8 dashboard implementation plan written.
+- [x] FastAPI dashboard route and static asset mount implemented.
+- [x] Browser dashboard HTML/CSS/JS implemented.
+- [x] Dashboard tests added.
+- [x] README and REPORT updated for V8 dashboard usage.
+- [x] `pytest -v` passed with 62 tests.
+- [x] `python evals/run_eval.py` passed with 5/5 correct and accuracy 1.0.
+- [x] `python -m compileall app` passed after V8.
+- [x] `git diff --check` passed after V8.
+- [x] Browser dashboard verification passed with deterministic run, 2 selected factors, and 22 trace events.
 
 ## In Progress
 
-- [ ] Plan V8 portfolio-level web UI or real search API integration.
+- [ ] Commit and push V8.
 
 ## Next Queue
 
@@ -135,6 +146,6 @@ If this file is being read after context loss, continue with:
 
 ```text
 1. Confirm current git status.
-2. If V7 is not committed, run full verification and commit/push it.
+2. If V8 is not committed, run full verification and commit/push it.
 3. Keep fixture and deterministic fallbacks available for offline demos.
 ```
