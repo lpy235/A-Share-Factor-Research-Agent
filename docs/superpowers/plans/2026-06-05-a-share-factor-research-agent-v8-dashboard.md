@@ -42,4 +42,4 @@
 - [x] Run `python -m compileall app`.
 - [x] Run `git diff --check`.
 - [x] Start local server and inspect `/` in browser.
-- [ ] Commit and push V8.
+- [x] Commit and push V8.

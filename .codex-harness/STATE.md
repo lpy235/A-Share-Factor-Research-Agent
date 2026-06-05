@@ -3,7 +3,7 @@
 ## Current Phase
 
 ```text
-V8 dashboard in progress
+V8 complete
 ```
 
 ## Workspace
@@ -120,14 +120,15 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 - [x] `python -m compileall app` passed after V8.
 - [x] `git diff --check` passed after V8.
 - [x] Browser dashboard verification passed with deterministic run, 2 selected factors, and 22 trace events.
+- [x] V8 committed and pushed.
 
 ## In Progress
 
-- [ ] Commit and push V8.
+- [ ] Plan V9 richer portfolio charts, downloadable artifacts, or real search API integration.
 
 ## Next Queue
 
-- [ ] Plan V8 portfolio-level web UI or real search API integration.
+- [ ] Plan V9 richer portfolio charts, downloadable artifacts, or real search API integration.
 
 ## Known Risks
 
