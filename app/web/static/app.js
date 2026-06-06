@@ -20,6 +20,7 @@ const runConfig = document.querySelector("#run-config");
 const uploadInput = document.querySelector("#document-file");
 const uploadLabel = document.querySelector("#upload-label");
 const workflowSteps = document.querySelectorAll("#workflow-steps li");
+const launchActions = document.querySelectorAll(".launch-action");
 
 let currentRun = null;
 
@@ -51,10 +52,23 @@ uploadInput.addEventListener("change", () => {
   uploadLabel.textContent = uploadInput.files.length
     ? uploadInput.files[0].name
     : "Drop or choose Markdown, txt, PDF";
+  setActiveLaunch(uploadInput.files.length ? "upload" : "topic");
+  if (uploadInput.files.length) {
+    setSourceMode("upload");
+  }
 });
 
 document.querySelectorAll("input, select, textarea").forEach((control) => {
   control.addEventListener("change", () => renderRunConfig(buildRunPayload([])));
+});
+
+launchActions.forEach((button) => {
+  button.addEventListener("click", () => {
+    const mode = button.dataset.launch;
+    if (prepareLaunch(mode)) {
+      form.requestSubmit();
+    }
+  });
 });
 
 document.querySelectorAll(".tab-button").forEach((button) => {
@@ -70,6 +84,47 @@ document.querySelectorAll(".tab-button").forEach((button) => {
 });
 
 renderRunConfig(buildRunPayload([]));
+setActiveLaunch("sample");
+
+function prepareLaunch(mode) {
+  setActiveLaunch(mode);
+  if (mode === "sample") {
+    document.querySelector("#research-topic").value = "A股量价类动量因子";
+    setSourceMode("auto");
+    document.querySelector("#retrieval-mode").value = "hybrid";
+    document.querySelector("#extraction-mode").value = "rule";
+    document.querySelector("#data-provider").value = "fixture";
+    document.querySelector("#start-date").value = "2020-01-01";
+    document.querySelector("#end-date").value = "2020-12-31";
+  }
+  if (mode === "topic") {
+    setSourceMode("auto");
+  }
+  if (mode === "upload") {
+    setSourceMode(uploadInput.files.length ? "upload" : "hybrid");
+    if (!uploadInput.files.length) {
+      uploadInput.click();
+      setStatus("Choose material", "Select a paper, report, Markdown, or text file, then click Upload material again to run.", "idle");
+      renderRunConfig(buildRunPayload([]));
+      return false;
+    }
+  }
+  renderRunConfig(buildRunPayload([]));
+  return true;
+}
+
+function setActiveLaunch(mode) {
+  launchActions.forEach((button) => {
+    button.classList.toggle("active", button.dataset.launch === mode);
+  });
+}
+
+function setSourceMode(mode) {
+  const radio = document.querySelector(`input[name="source_mode_radio"][value="${mode}"]`);
+  if (radio) {
+    radio.checked = true;
+  }
+}
 
 function buildRunPayload(documentIds) {
   return {

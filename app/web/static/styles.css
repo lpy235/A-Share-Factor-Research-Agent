@@ -203,6 +203,83 @@ input:focus {
   gap: 10px;
 }
 
+.launch-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.launch-action {
+  display: grid;
+  gap: 5px;
+  min-height: 74px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  color: var(--ink);
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.launch-action:hover,
+.launch-action.active {
+  border-color: rgba(15, 118, 110, 0.34);
+  background: rgba(15, 118, 110, 0.08);
+}
+
+.launch-action span {
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.launch-action small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.sample-action {
+  background: var(--code);
+  color: #fff;
+}
+
+.sample-action small {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.sample-action:hover,
+.sample-action.active {
+  border-color: var(--code);
+  background: #1e2a36;
+}
+
+.advanced-settings {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  padding: 10px;
+}
+
+.advanced-settings[open] {
+  padding-bottom: 14px;
+}
+
+.advanced-settings summary {
+  cursor: pointer;
+  color: #303842;
+  font-size: 13px;
+  font-weight: 850;
+  list-style-position: outside;
+  padding: 2px 4px;
+}
+
+.advanced-settings > * + * {
+  margin-top: 12px;
+}
+
 .segmented {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

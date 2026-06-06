@@ -29,8 +29,8 @@
           <section class="panel-section">
             <div class="section-heading compact">
               <div>
-                <p class="eyebrow">Input</p>
-                <h2>Research Setup</h2>
+                <p class="eyebrow">Launch</p>
+                <h2>Start Research</h2>
               </div>
               <span id="status-pill" class="status-pill idle">Ready</span>
             </div>
@@ -46,66 +46,19 @@
                 >A股量价类动量因子</textarea>
               </label>
 
-              <div class="segmented" aria-label="Source mode">
-                <input id="source-auto" name="source_mode_radio" type="radio" value="auto" checked />
-                <label for="source-auto">Auto</label>
-                <input id="source-upload" name="source_mode_radio" type="radio" value="upload" />
-                <label for="source-upload">Upload</label>
-                <input id="source-hybrid" name="source_mode_radio" type="radio" value="hybrid" />
-                <label for="source-hybrid">Hybrid</label>
-              </div>
-
-              <div class="field-grid">
-                <label class="field">
-                  <span>Retrieval</span>
-                  <select id="retrieval-mode" name="retrieval_mode">
-                    <option value="hybrid" selected>Hybrid RAG</option>
-                    <option value="vector">Vector</option>
-                    <option value="keyword">Keyword</option>
-                  </select>
-                </label>
-
-                <label class="field">
-                  <span>Extraction</span>
-                  <select id="extraction-mode" name="extraction_mode">
-                    <option value="rule" selected>Rule</option>
-                    <option value="hybrid">Hybrid</option>
-                    <option value="llm">LLM schema</option>
-                  </select>
-                </label>
-
-                <label class="field">
-                  <span>Data</span>
-                  <select id="data-provider" name="data_provider">
-                    <option value="fixture" selected>Fixture</option>
-                    <option value="akshare">AKShare</option>
-                  </select>
-                </label>
-
-                <label class="field">
-                  <span>Universe</span>
-                  <input id="universe" name="universe" value="CSI300" />
-                </label>
-
-                <label class="field">
-                  <span>Start date</span>
-                  <input id="start-date" name="start_date" type="date" value="2020-01-01" />
-                </label>
-
-                <label class="field">
-                  <span>End date</span>
-                  <input id="end-date" name="end_date" type="date" value="2020-12-31" />
-                </label>
-
-                <label class="field">
-                  <span>Max sources</span>
-                  <input id="max-sources" name="max_sources" type="number" min="1" max="8" value="2" />
-                </label>
-
-                <label class="field">
-                  <span>Max chunks</span>
-                  <input id="max-chunks" name="max_chunks" type="number" min="1" max="12" value="5" />
-                </label>
+              <div class="launch-grid" aria-label="Research launch options">
+                <button class="launch-action sample-action" type="button" data-launch="sample">
+                  <span>Run sample research</span>
+                  <small>Default topic · auto sources · fixture data</small>
+                </button>
+                <button class="launch-action" type="button" data-launch="topic">
+                  <span>Start from topic</span>
+                  <small>Topic input · public materials · backtest</small>
+                </button>
+                <button class="launch-action" type="button" data-launch="upload">
+                  <span>Upload material</span>
+                  <small>Paper/report · extraction · validation</small>
+                </button>
               </div>
 
               <label class="upload-drop">
@@ -114,24 +67,90 @@
                 <input id="document-file" name="document" type="file" accept=".md,.txt,.pdf" />
               </label>
 
-              <div class="toggle-stack">
-                <label class="switchline">
-                  <input id="cache-enabled" type="checkbox" checked />
-                  <span>Cache market data</span>
-                </label>
-                <label class="switchline">
-                  <input id="fallback-to-fixture" type="checkbox" checked />
-                  <span>Fallback to fixture</span>
-                </label>
-                <label class="switchline">
-                  <input id="enable-llm" type="checkbox" />
-                  <span>Enable LLM extraction</span>
-                </label>
-                <label class="switchline">
-                  <input id="allow-live-fetch" type="checkbox" />
-                  <span>Allow live source fetch</span>
-                </label>
-              </div>
+              <details class="advanced-settings">
+                <summary>Advanced settings</summary>
+
+                <div class="segmented" aria-label="Source mode">
+                  <input id="source-auto" name="source_mode_radio" type="radio" value="auto" checked />
+                  <label for="source-auto">Auto</label>
+                  <input id="source-upload" name="source_mode_radio" type="radio" value="upload" />
+                  <label for="source-upload">Upload</label>
+                  <input id="source-hybrid" name="source_mode_radio" type="radio" value="hybrid" />
+                  <label for="source-hybrid">Hybrid</label>
+                </div>
+
+                <div class="field-grid">
+                  <label class="field">
+                    <span>Retrieval</span>
+                    <select id="retrieval-mode" name="retrieval_mode">
+                      <option value="hybrid" selected>Hybrid RAG</option>
+                      <option value="vector">Vector</option>
+                      <option value="keyword">Keyword</option>
+                    </select>
+                  </label>
+
+                  <label class="field">
+                    <span>Extraction</span>
+                    <select id="extraction-mode" name="extraction_mode">
+                      <option value="rule" selected>Rule</option>
+                      <option value="hybrid">Hybrid</option>
+                      <option value="llm">LLM schema</option>
+                    </select>
+                  </label>
+
+                  <label class="field">
+                    <span>Data</span>
+                    <select id="data-provider" name="data_provider">
+                      <option value="fixture" selected>Fixture</option>
+                      <option value="akshare">AKShare</option>
+                    </select>
+                  </label>
+
+                  <label class="field">
+                    <span>Universe</span>
+                    <input id="universe" name="universe" value="CSI300" />
+                  </label>
+
+                  <label class="field">
+                    <span>Start date</span>
+                    <input id="start-date" name="start_date" type="date" value="2020-01-01" />
+                  </label>
+
+                  <label class="field">
+                    <span>End date</span>
+                    <input id="end-date" name="end_date" type="date" value="2020-12-31" />
+                  </label>
+
+                  <label class="field">
+                    <span>Max sources</span>
+                    <input id="max-sources" name="max_sources" type="number" min="1" max="8" value="2" />
+                  </label>
+
+                  <label class="field">
+                    <span>Max chunks</span>
+                    <input id="max-chunks" name="max_chunks" type="number" min="1" max="12" value="5" />
+                  </label>
+                </div>
+
+                <div class="toggle-stack">
+                  <label class="switchline">
+                    <input id="cache-enabled" type="checkbox" checked />
+                    <span>Cache market data</span>
+                  </label>
+                  <label class="switchline">
+                    <input id="fallback-to-fixture" type="checkbox" checked />
+                    <span>Fallback to fixture</span>
+                  </label>
+                  <label class="switchline">
+                    <input id="enable-llm" type="checkbox" />
+                    <span>Enable LLM extraction</span>
+                  </label>
+                  <label class="switchline">
+                    <input id="allow-live-fetch" type="checkbox" />
+                    <span>Allow live source fetch</span>
+                  </label>
+                </div>
+              </details>
             </form>
           </section>
 
