@@ -22,6 +22,26 @@ const uploadLabel = document.querySelector("#upload-label");
 const workflowSteps = document.querySelectorAll("#workflow-steps li");
 const launchActions = document.querySelectorAll(".launch-action");
 
+const sourceModeLabels = {
+  auto: "自动找资料",
+  upload: "仅上传",
+  hybrid: "混合",
+};
+const retrievalLabels = {
+  hybrid: "混合 RAG",
+  vector: "向量检索",
+  keyword: "关键词检索",
+};
+const extractionLabels = {
+  rule: "规则抽取",
+  hybrid: "混合抽取",
+  llm: "LLM Schema",
+};
+const dataProviderLabels = {
+  fixture: "内置示例数据",
+  akshare: "AKShare",
+};
+
 let currentRun = null;
 
 form.addEventListener("submit", async (event) => {
@@ -29,7 +49,7 @@ form.addEventListener("submit", async (event) => {
   clearError();
   resetWorkflow();
   setLoading(true);
-  setStatus("Running research", "The agent is collecting evidence, generating factors, and validating the run.", "running");
+  setStatus("研究运行中", "系统正在检索资料、生成因子公式并运行回测校验。", "running");
 
   try {
     const documentIds = await uploadDocumentIfNeeded();
@@ -39,10 +59,10 @@ form.addEventListener("submit", async (event) => {
     currentRun = run;
     renderRun(run);
     await loadTrace(run.run_id);
-    setStatus("Research run completed", "Review the selected factors, validation metrics, report, and trace evidence below.", "done");
+    setStatus("研究运行完成", "下方可以查看入选因子、回测指标、研究报告和执行追踪。", "done");
   } catch (error) {
-    showError(error.message || "Run failed");
-    setStatus("Run failed", "The workflow stopped before producing a complete result.", "failed");
+    showError(error.message || "运行失败");
+    setStatus("运行失败", "工作流在生成完整结果前停止，请检查配置或接口返回。", "failed");
   } finally {
     setLoading(false);
   }
@@ -51,7 +71,7 @@ form.addEventListener("submit", async (event) => {
 uploadInput.addEventListener("change", () => {
   uploadLabel.textContent = uploadInput.files.length
     ? uploadInput.files[0].name
-    : "Drop or choose Markdown, txt, PDF";
+    : "选择 Markdown、txt 或 PDF 文件";
   setActiveLaunch(uploadInput.files.length ? "upload" : "topic");
   if (uploadInput.files.length) {
     setSourceMode("upload");
@@ -104,7 +124,7 @@ function prepareLaunch(mode) {
     setSourceMode(uploadInput.files.length ? "upload" : "hybrid");
     if (!uploadInput.files.length) {
       uploadInput.click();
-      setStatus("Choose material", "Select a paper, report, Markdown, or text file, then click Upload material again to run.", "idle");
+      setStatus("请选择材料", "选择论文、研报、Markdown 或文本文件后，再点击“上传论文/研报”运行。", "idle");
       renderRunConfig(buildRunPayload([]));
       return false;
     }
@@ -161,7 +181,7 @@ async function uploadDocumentIfNeeded() {
     body: data,
   });
   if (!response.ok) {
-    throw new Error(await responseText(response, "Document upload failed"));
+    throw new Error(await responseText(response, "材料上传失败"));
   }
   const body = await response.json();
   return [body.document_id];
@@ -174,7 +194,7 @@ async function postJson(url, payload) {
     body: JSON.stringify(payload),
   });
   if (!response.ok) {
-    throw new Error(await responseText(response, "Request failed"));
+    throw new Error(await responseText(response, "请求失败"));
   }
   return response.json();
 }
@@ -182,7 +202,7 @@ async function postJson(url, payload) {
 async function loadTrace(runId) {
   const response = await fetch(`/runs/${runId}/events`);
   if (!response.ok) {
-    throw new Error(await responseText(response, "Could not load trace events"));
+    throw new Error(await responseText(response, "无法加载执行追踪"));
   }
   const body = await response.json();
   renderTrace(body.events || []);
@@ -196,25 +216,25 @@ function renderRun(run) {
   selectedFactors.classList.toggle("empty-state", run.selected_factors.length === 0);
   selectedFactors.innerHTML = run.selected_factors.length
     ? run.selected_factors.map((name) => `<span class="chip">${escapeHtml(name)}</span>`).join("")
-    : "No factor selected.";
+    : "暂无入选因子。";
 
   factorList.classList.toggle("empty-state", run.factor_specs.length === 0);
   factorList.innerHTML = run.factor_specs.length
     ? run.factor_specs.map(renderFactor).join("")
-    : "No generated formulas.";
+    : "暂无生成公式。";
 
   const metrics = Array.isArray(run.metrics) ? run.metrics : extractMetrics(run.report_markdown);
   renderMetricSummary(metrics);
   renderMetrics(metrics);
   renderSources(run.factor_specs);
-  reportOutput.textContent = run.report_markdown || "No report returned.";
+  reportOutput.textContent = run.report_markdown || "接口未返回研究报告。";
   rawOutput.textContent = JSON.stringify(run, null, 2);
 }
 
 function renderFactor(factor) {
   const selected = currentRun?.selected_factors?.includes(factor.factor_name);
   const badgeClass = selected ? "factor-badge selected" : "factor-badge";
-  const badgeText = selected ? "Selected" : "Candidate";
+  const badgeText = selected ? "入选" : "候选";
   return `
     <article class="factor-item">
       <div class="factor-name">
@@ -223,7 +243,7 @@ function renderFactor(factor) {
       </div>
       <code class="formula">${escapeHtml(factor.formula || "")}</code>
       <p class="factor-meta">${escapeHtml(factor.hypothesis || "")}</p>
-      <p class="factor-meta">Source: ${escapeHtml(factor.source_title || "unknown")}</p>
+      <p class="factor-meta">来源：${escapeHtml(factor.source_title || "未知资料")}</p>
     </article>
   `;
 }
@@ -231,7 +251,7 @@ function renderFactor(factor) {
 function renderMetrics(metrics) {
   metricsTable.classList.toggle("empty-state", metrics.length === 0);
   if (!metrics.length) {
-    metricsTable.innerHTML = "No metrics available yet.";
+    metricsTable.innerHTML = "暂无指标。";
     return;
   }
 
@@ -239,12 +259,12 @@ function renderMetrics(metrics) {
     <table class="metrics-table">
       <thead>
         <tr>
-          <th>Factor</th>
+          <th>因子</th>
           <th>Rank IC</th>
           <th>ICIR</th>
-          <th>Coverage</th>
-          <th>Missing</th>
-          <th>Drawdown</th>
+          <th>覆盖率</th>
+          <th>缺失率</th>
+          <th>最大回撤</th>
           <th>Sharpe</th>
         </tr>
       </thead>
@@ -272,7 +292,7 @@ function renderMetrics(metrics) {
 function renderMetricSummary(metrics) {
   metricSummary.classList.toggle("empty-state", metrics.length === 0);
   if (!metrics.length) {
-    metricSummary.innerHTML = "Run the workflow to see signal quality.";
+    metricSummary.innerHTML = "运行后展示 Rank IC、ICIR、覆盖率和 Sharpe。";
     return;
   }
 
@@ -281,16 +301,16 @@ function renderMetricSummary(metrics) {
   const bestCoverage = bestMetric(metrics, "coverage_ratio");
   const bestSharpe = bestMetric(metrics, "sharpe");
   metricSummary.innerHTML = [
-    renderSummaryItem("Best Rank IC", bestRankIc, "mean_rank_ic"),
-    renderSummaryItem("Best ICIR", bestIcir, "icir"),
-    renderSummaryItem("Coverage", bestCoverage, "coverage_ratio"),
+    renderSummaryItem("最佳 Rank IC", bestRankIc, "mean_rank_ic"),
+    renderSummaryItem("最佳 ICIR", bestIcir, "icir"),
+    renderSummaryItem("覆盖率", bestCoverage, "coverage_ratio"),
     renderSummaryItem("Sharpe", bestSharpe, "sharpe"),
   ].join("");
 }
 
 function renderSummaryItem(label, metric, key) {
   const value = metric ? formatMetric(metric[key]) : "-";
-  const factor = metric?.factor_name || "No factor";
+  const factor = metric?.factor_name || "暂无因子";
   return `
     <div class="summary-item">
       <span>${escapeHtml(label)}</span>
@@ -303,7 +323,7 @@ function renderSummaryItem(label, metric, key) {
 function renderSources(factors) {
   const sourceMap = new Map();
   factors.forEach((factor) => {
-    const title = factor.source_title || "Unknown source";
+    const title = factor.source_title || "未知资料";
     const url = factor.source_url || "";
     const key = `${title}|${url}`;
     const source = sourceMap.get(key) || {
@@ -318,13 +338,13 @@ function renderSources(factors) {
   sourceList.classList.toggle("empty-state", sources.length === 0);
   sourceList.innerHTML = sources.length
     ? sources.map(renderSource).join("")
-    : "Run the workflow to see source coverage.";
+    : "运行后展示因子和资料来源的对应关系。";
 }
 
 function renderSource(source) {
   const title = escapeHtml(source.title);
-  const url = escapeHtml(source.url || "Local source");
-  const factorText = `${source.factors.length} factor${source.factors.length === 1 ? "" : "s"}`;
+  const url = escapeHtml(source.url || "本地资料");
+  const factorText = `${source.factors.length} 个因子`;
   return `
     <div class="source-row">
       <div>
@@ -377,7 +397,7 @@ function renderTrace(events) {
   eventCount.textContent = events.length;
   traceList.innerHTML = events.length
     ? events.map(renderEvent).join("")
-    : '<li class="empty-state">No trace events returned.</li>';
+    : '<li class="empty-state">暂无追踪事件。</li>';
 }
 
 function renderEvent(event) {
@@ -413,24 +433,41 @@ function resetWorkflow() {
 
 function renderRunConfig(payload) {
   runConfig.innerHTML = `
-    <span>Source: ${escapeHtml(payload.source_mode)}</span>
-    <span>Retrieval: ${escapeHtml(payload.retrieval_mode)}</span>
-    <span>Extraction: ${escapeHtml(payload.extraction_mode)}</span>
-    <span>Data: ${escapeHtml(payload.data_provider)}</span>
-    <span>Window: ${escapeHtml(payload.start_date)} to ${escapeHtml(payload.end_date)}</span>
+    <span>资料来源：${escapeHtml(labelFor(sourceModeLabels, payload.source_mode))}</span>
+    <span>检索方式：${escapeHtml(labelFor(retrievalLabels, payload.retrieval_mode))}</span>
+    <span>抽取方式：${escapeHtml(labelFor(extractionLabels, payload.extraction_mode))}</span>
+    <span>行情数据：${escapeHtml(labelFor(dataProviderLabels, payload.data_provider))}</span>
+    <span>回测窗口：${escapeHtml(payload.start_date)} 至 ${escapeHtml(payload.end_date)}</span>
   `;
 }
 
 function setLoading(isLoading) {
   runButton.disabled = isLoading;
-  runButton.textContent = isLoading ? "Running..." : "Run research";
+  runButton.textContent = isLoading ? "运行中..." : "运行当前研究";
 }
 
 function setStatus(title, copy, mode) {
   statusTitle.textContent = title;
   statusCopy.textContent = copy;
-  statusPill.textContent = mode === "done" ? "Completed" : title.split(" ")[0];
+  statusPill.textContent = statusText(mode, title);
   statusPill.className = `status-pill ${mode || "idle"}`;
+}
+
+function statusText(mode, fallback) {
+  if (mode === "running") {
+    return "运行中";
+  }
+  if (mode === "done") {
+    return "已完成";
+  }
+  if (mode === "failed") {
+    return "失败";
+  }
+  return fallback || "就绪";
+}
+
+function labelFor(labels, value) {
+  return labels[value] || value;
 }
 
 function showError(message) {

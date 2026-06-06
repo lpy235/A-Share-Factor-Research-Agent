@@ -1,43 +1,45 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>A-Share Factor Research Agent</title>
+    <title>A股因子研究智能体</title>
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
     <main class="app-shell">
       <header class="topbar">
         <div class="identity">
-          <span class="product-mark">AF</span>
+          <span class="product-mark">因</span>
           <div>
-            <p class="eyebrow">A-Share Research Workspace</p>
-            <h1>A-Share Factor Research Agent</h1>
+            <p class="eyebrow">A股量化研究工作台</p>
+            <h1>A股因子研究智能体</h1>
           </div>
         </div>
         <div class="topbar-actions">
-          <span id="run-id" class="run-id">No active run</span>
+          <a class="secondary-link" href="/docs" target="_blank" rel="noreferrer">API 文档</a>
+          <a class="secondary-link" href="/health" target="_blank" rel="noreferrer">健康检查</a>
+          <span id="run-id" class="run-id">暂无运行</span>
           <button id="run-button" class="primary-action" type="submit" form="run-form">
-            Run research
+            运行当前研究
           </button>
         </div>
       </header>
 
       <section class="workspace-grid">
-        <aside class="left-panel" aria-label="Research run controls">
+        <aside class="left-panel" aria-label="研究启动控制">
           <section class="panel-section">
             <div class="section-heading compact">
               <div>
-                <p class="eyebrow">Launch</p>
-                <h2>Start Research</h2>
+                <p class="eyebrow">启动</p>
+                <h2>开始一次因子研究</h2>
               </div>
-              <span id="status-pill" class="status-pill idle">Ready</span>
+              <span id="status-pill" class="status-pill idle">就绪</span>
             </div>
 
             <form id="run-form" class="run-form">
               <label class="field full-span">
-                <span>Research topic</span>
+                <span>研究主题</span>
                 <textarea
                   id="research-topic"
                   name="research_topic"
@@ -46,88 +48,88 @@
                 >A股量价类动量因子</textarea>
               </label>
 
-              <div class="launch-grid" aria-label="Research launch options">
+              <div class="launch-grid" aria-label="研究启动方式">
                 <button class="launch-action sample-action" type="button" data-launch="sample">
-                  <span>Run sample research</span>
-                  <small>Default topic · auto sources · fixture data</small>
+                  <span>跑一个示例研究</span>
+                  <small>默认主题、公开资料、内置行情数据，直接跑完整流程</small>
                 </button>
                 <button class="launch-action" type="button" data-launch="topic">
-                  <span>Start from topic</span>
-                  <small>Topic input · public materials · backtest</small>
+                  <span>从主题开始</span>
+                  <small>输入研究想法，自动找公开资料并生成候选因子</small>
                 </button>
                 <button class="launch-action" type="button" data-launch="upload">
-                  <span>Upload material</span>
-                  <small>Paper/report · extraction · validation</small>
+                  <span>上传论文/研报</span>
+                  <small>上传 PDF、Markdown 或文本，抽取因子假设后回测筛选</small>
                 </button>
               </div>
 
               <label class="upload-drop">
-                <span>Optional document</span>
-                <strong id="upload-label">Drop or choose Markdown, txt, PDF</strong>
+                <span>可选材料</span>
+                <strong id="upload-label">选择 Markdown、txt 或 PDF 文件</strong>
                 <input id="document-file" name="document" type="file" accept=".md,.txt,.pdf" />
               </label>
 
               <details class="advanced-settings">
-                <summary>Advanced settings</summary>
+                <summary>高级设置</summary>
 
-                <div class="segmented" aria-label="Source mode">
+                <div class="segmented" aria-label="资料来源模式">
                   <input id="source-auto" name="source_mode_radio" type="radio" value="auto" checked />
-                  <label for="source-auto">Auto</label>
+                  <label for="source-auto">自动找资料</label>
                   <input id="source-upload" name="source_mode_radio" type="radio" value="upload" />
-                  <label for="source-upload">Upload</label>
+                  <label for="source-upload">仅上传</label>
                   <input id="source-hybrid" name="source_mode_radio" type="radio" value="hybrid" />
-                  <label for="source-hybrid">Hybrid</label>
+                  <label for="source-hybrid">混合</label>
                 </div>
 
                 <div class="field-grid">
                   <label class="field">
-                    <span>Retrieval</span>
+                    <span>检索方式</span>
                     <select id="retrieval-mode" name="retrieval_mode">
-                      <option value="hybrid" selected>Hybrid RAG</option>
-                      <option value="vector">Vector</option>
-                      <option value="keyword">Keyword</option>
+                      <option value="hybrid" selected>混合 RAG</option>
+                      <option value="vector">向量检索</option>
+                      <option value="keyword">关键词检索</option>
                     </select>
                   </label>
 
                   <label class="field">
-                    <span>Extraction</span>
+                    <span>抽取方式</span>
                     <select id="extraction-mode" name="extraction_mode">
-                      <option value="rule" selected>Rule</option>
-                      <option value="hybrid">Hybrid</option>
-                      <option value="llm">LLM schema</option>
+                      <option value="rule" selected>规则抽取</option>
+                      <option value="hybrid">混合抽取</option>
+                      <option value="llm">LLM Schema</option>
                     </select>
                   </label>
 
                   <label class="field">
-                    <span>Data</span>
+                    <span>行情数据</span>
                     <select id="data-provider" name="data_provider">
-                      <option value="fixture" selected>Fixture</option>
+                      <option value="fixture" selected>内置示例数据</option>
                       <option value="akshare">AKShare</option>
                     </select>
                   </label>
 
                   <label class="field">
-                    <span>Universe</span>
+                    <span>股票池</span>
                     <input id="universe" name="universe" value="CSI300" />
                   </label>
 
                   <label class="field">
-                    <span>Start date</span>
+                    <span>开始日期</span>
                     <input id="start-date" name="start_date" type="date" value="2020-01-01" />
                   </label>
 
                   <label class="field">
-                    <span>End date</span>
+                    <span>结束日期</span>
                     <input id="end-date" name="end_date" type="date" value="2020-12-31" />
                   </label>
 
                   <label class="field">
-                    <span>Max sources</span>
+                    <span>资料数量</span>
                     <input id="max-sources" name="max_sources" type="number" min="1" max="8" value="2" />
                   </label>
 
                   <label class="field">
-                    <span>Max chunks</span>
+                    <span>片段数量</span>
                     <input id="max-chunks" name="max_chunks" type="number" min="1" max="12" value="5" />
                   </label>
                 </div>
@@ -135,19 +137,19 @@
                 <div class="toggle-stack">
                   <label class="switchline">
                     <input id="cache-enabled" type="checkbox" checked />
-                    <span>Cache market data</span>
+                    <span>缓存行情数据</span>
                   </label>
                   <label class="switchline">
                     <input id="fallback-to-fixture" type="checkbox" checked />
-                    <span>Fallback to fixture</span>
+                    <span>失败时使用示例数据</span>
                   </label>
                   <label class="switchline">
                     <input id="enable-llm" type="checkbox" />
-                    <span>Enable LLM extraction</span>
+                    <span>启用 LLM 抽取</span>
                   </label>
                   <label class="switchline">
                     <input id="allow-live-fetch" type="checkbox" />
-                    <span>Allow live source fetch</span>
+                    <span>允许实时抓取公开资料</span>
                   </label>
                 </div>
               </details>
@@ -155,12 +157,12 @@
           </section>
 
           <section class="panel-section compact-card">
-            <p class="eyebrow">Current Run</p>
+            <p class="eyebrow">当前配置</p>
             <div id="run-config" class="config-list">
-              <span>Source: auto</span>
-              <span>Retrieval: hybrid</span>
-              <span>Extraction: rule</span>
-              <span>Data: fixture</span>
+              <span>资料来源：自动找资料</span>
+              <span>检索方式：混合 RAG</span>
+              <span>抽取方式：规则抽取</span>
+              <span>行情数据：内置示例数据</span>
             </div>
           </section>
         </aside>
@@ -170,24 +172,24 @@
 
           <section class="hero-panel">
             <div>
-              <p class="eyebrow">Research Output</p>
-              <h2 id="status-title">Ready to run factor research</h2>
+              <p class="eyebrow">研究结果</p>
+              <h2 id="status-title">等待启动研究</h2>
               <p id="status-copy" class="muted-copy">
-                Configure the research task, run the workflow, then review factors, metrics,
-                generated report, and trace evidence in one place.
+                选择一种启动方式后，系统会完成资料检索、因子假设抽取、Factor DSL 生成、
+                回测校验和因子筛选，并在这里展示完整结果。
               </p>
             </div>
             <div class="metric-strip">
               <div class="metric-tile">
-                <span class="metric-label">Selected</span>
+                <span class="metric-label">入选因子</span>
                 <strong id="selected-count">0</strong>
               </div>
               <div class="metric-tile">
-                <span class="metric-label">Factors</span>
+                <span class="metric-label">候选公式</span>
                 <strong id="factor-count">0</strong>
               </div>
               <div class="metric-tile">
-                <span class="metric-label">Trace events</span>
+                <span class="metric-label">追踪事件</span>
                 <strong id="event-count">0</strong>
               </div>
             </div>
@@ -197,68 +199,68 @@
             <article class="result-card summary-card wide-card">
               <div class="section-heading">
                 <div>
-                  <p class="eyebrow">Backtest Snapshot</p>
-                  <h3>Signal Quality</h3>
+                  <p class="eyebrow">回测快照</p>
+                  <h3>信号质量</h3>
                 </div>
               </div>
               <div id="metric-summary" class="summary-grid empty-state">
-                Run the workflow to see signal quality.
+                运行后展示 Rank IC、ICIR、覆盖率和 Sharpe。
               </div>
             </article>
 
             <article class="result-card source-card">
               <div class="section-heading">
                 <div>
-                  <p class="eyebrow">Evidence</p>
-                  <h3>Source Coverage</h3>
+                  <p class="eyebrow">证据</p>
+                  <h3>资料覆盖</h3>
                 </div>
               </div>
               <div id="source-list" class="source-list empty-state">
-                Run the workflow to see source coverage.
+                运行后展示因子和资料来源的对应关系。
               </div>
             </article>
 
             <article class="result-card selected-card">
               <div class="section-heading">
                 <div>
-                  <p class="eyebrow">Selection</p>
-                  <h3>Selected Factors</h3>
+                  <p class="eyebrow">筛选</p>
+                  <h3>入选因子</h3>
                 </div>
               </div>
               <div id="selected-factors" class="chip-row empty-state">
-                Run the workflow to see selected factors.
+                运行后展示通过筛选的因子。
               </div>
             </article>
 
             <article class="result-card metrics-card">
               <div class="section-heading">
                 <div>
-                  <p class="eyebrow">Formula Layer</p>
+                  <p class="eyebrow">公式层</p>
                   <h3>Factor DSL</h3>
                 </div>
               </div>
-              <div id="factor-list" class="factor-list empty-state">No generated formulas yet.</div>
+              <div id="factor-list" class="factor-list empty-state">暂无生成公式。</div>
             </article>
 
             <article class="result-card">
               <div class="section-heading">
                 <div>
-                  <p class="eyebrow">Validation</p>
-                  <h3>Backtest Metrics</h3>
+                  <p class="eyebrow">校验</p>
+                  <h3>回测指标</h3>
                 </div>
               </div>
-              <div id="metrics-table" class="table-wrap empty-state">No metrics available yet.</div>
+              <div id="metrics-table" class="table-wrap empty-state">暂无指标。</div>
             </article>
 
             <article class="result-card report-card">
-              <div class="tab-row" role="tablist" aria-label="Run details">
-                <button class="tab-button active" type="button" data-tab="report">Report</button>
-                <button class="tab-button" type="button" data-tab="trace">Trace</button>
-                <button class="tab-button" type="button" data-tab="raw">Raw</button>
+              <div class="tab-row" role="tablist" aria-label="运行详情">
+                <button class="tab-button active" type="button" data-tab="report">研究报告</button>
+                <button class="tab-button" type="button" data-tab="trace">执行追踪</button>
+                <button class="tab-button" type="button" data-tab="raw">原始 JSON</button>
               </div>
 
               <div id="report-tab" class="tab-panel active">
-                <pre id="report-output" class="report-output">Report will appear here after a run.</pre>
+                <pre id="report-output" class="report-output">运行后会在这里生成研究报告。</pre>
               </div>
               <div id="trace-tab" class="tab-panel">
                 <ol id="trace-list" class="trace-list"></ol>
@@ -270,25 +272,47 @@
           </section>
         </section>
 
-        <aside class="right-panel" aria-label="Workflow trace summary">
+        <aside class="right-panel" aria-label="接口与工作流追踪">
+          <section class="panel-section api-panel">
+            <div class="section-heading compact">
+              <div>
+                <p class="eyebrow">API</p>
+                <h2>接口入口</h2>
+              </div>
+            </div>
+            <div class="api-links">
+              <a href="/docs" target="_blank" rel="noreferrer">打开 Swagger 文档</a>
+              <a href="/health" target="_blank" rel="noreferrer">检查服务状态</a>
+            </div>
+            <div class="endpoint-list">
+              <span><strong>POST</strong> /research/runs</span>
+              <span><strong>POST</strong> /documents</span>
+              <span><strong>GET</strong> /runs/{run_id}/events</span>
+              <span><strong>GET</strong> /runs/{run_id}/events/stream</span>
+            </div>
+            <pre class="curl-box">curl -X POST http://127.0.0.1:8000/research/runs \
+  -H "Content-Type: application/json" \
+  -d '{"research_topic":"A股量价类动量因子","source_mode":"auto"}'</pre>
+          </section>
+
           <section class="panel-section">
             <div class="section-heading compact">
               <div>
-                <p class="eyebrow">Agent Trace</p>
-                <h2>Workflow</h2>
+                <p class="eyebrow">追踪</p>
+                <h2>工作流</h2>
               </div>
             </div>
             <ol id="workflow-steps" class="workflow-steps">
-              <li data-node="LoadDocumentsNode"><span></span>Load documents</li>
-              <li data-node="RetrieveChunksNode"><span></span>Retrieve chunks</li>
-              <li data-node="ExtractHypothesesNode"><span></span>Extract hypotheses</li>
-              <li data-node="GenerateFactorDSLNode"><span></span>Generate DSL</li>
-              <li data-node="ValidateDSLNode"><span></span>Validate DSL</li>
-              <li data-node="LoadMarketDataNode"><span></span>Load market data</li>
-              <li data-node="ExecuteFactorsNode"><span></span>Execute factors</li>
-              <li data-node="RunBacktestNode"><span></span>Run backtest</li>
-              <li data-node="SelectFactorsNode"><span></span>Select factors</li>
-              <li data-node="GenerateReportNode"><span></span>Generate report</li>
+              <li data-node="LoadDocumentsNode"><span></span>加载资料</li>
+              <li data-node="RetrieveChunksNode"><span></span>检索片段</li>
+              <li data-node="ExtractHypothesesNode"><span></span>抽取假设</li>
+              <li data-node="GenerateFactorDSLNode"><span></span>生成 DSL</li>
+              <li data-node="ValidateDSLNode"><span></span>校验 DSL</li>
+              <li data-node="LoadMarketDataNode"><span></span>加载行情</li>
+              <li data-node="ExecuteFactorsNode"><span></span>执行因子</li>
+              <li data-node="RunBacktestNode"><span></span>运行回测</li>
+              <li data-node="SelectFactorsNode"><span></span>筛选因子</li>
+              <li data-node="GenerateReportNode"><span></span>生成报告</li>
             </ol>
           </section>
         </aside>

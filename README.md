@@ -1,8 +1,33 @@
-# A-Share Factor Research Agent
+# A股因子研究智能体
 
 A quant strategy / AI Agent research system for A-share factor research.
 
 It reads public or uploaded research material, retrieves factor evidence, extracts factor hypotheses, converts them into a restricted Factor DSL, validates them on A-share daily data, runs factor backtests, selects candidate factors, and renders a traceable research report in a browser dashboard.
+
+## 快速启动
+
+```bash
+cd "/Users/brain6/Documents/document/A-Share Factor Research Agent"
+python -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+pip install -e .
+uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+打开：
+
+```text
+http://127.0.0.1:8000/
+```
+
+接口文档：
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+首页提供三种入口：跑一个示例研究、从主题开始、上传论文/研报。默认示例研究不需要 OpenAI Key、实时行情或实时网页抓取。
 
 ## What It Does
 
