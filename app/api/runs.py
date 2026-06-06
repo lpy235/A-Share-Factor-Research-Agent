@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from app.storage.db import init_db
 from app.storage.artifacts import ArtifactStore
 from app.storage.events import EventStore
+from app.storage.runs import RunStore
 
 router = APIRouter(prefix="/runs", tags=["runs"])
 
@@ -15,6 +16,20 @@ DB_PATH = "runs.db"
 init_db(DB_PATH)
 store = EventStore(DB_PATH)
 artifact_store = ArtifactStore()
+run_store = RunStore(DB_PATH)
+
+
+@router.get("")
+def list_runs(limit: int = 20):
+    return {"runs": run_store.list_runs(limit=limit)}
+
+
+@router.get("/{run_id}")
+def get_run(run_id: str):
+    run = run_store.get_run(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="run_not_found")
+    return run
 
 
 @router.get("/{run_id}/events")

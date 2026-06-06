@@ -16,5 +16,18 @@ def init_db(db_path: str) -> None:
             """
         )
         conn.execute("CREATE INDEX IF NOT EXISTS idx_events_run_id ON events(run_id, id)")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS runs (
+                run_id TEXT PRIMARY KEY,
+                research_topic TEXT NOT NULL,
+                status TEXT NOT NULL,
+                config_json TEXT NOT NULL,
+                response_json TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_runs_updated_at ON runs(updated_at DESC)")
         conn.commit()
-

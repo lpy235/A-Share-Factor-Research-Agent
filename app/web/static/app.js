@@ -17,6 +17,10 @@ const reportOutput = document.querySelector("#report-output");
 const traceList = document.querySelector("#trace-list");
 const rawOutput = document.querySelector("#raw-output");
 const artifactList = document.querySelector("#artifact-list");
+const runHistory = document.querySelector("#run-history");
+const sourceDiagnostics = document.querySelector("#source-diagnostics");
+const backtestAssumptions = document.querySelector("#backtest-assumptions");
+const auditTrail = document.querySelector("#audit-trail");
 const runConfig = document.querySelector("#run-config");
 const uploadInput = document.querySelector("#document-file");
 const uploadLabel = document.querySelector("#upload-label");
@@ -60,6 +64,7 @@ form.addEventListener("submit", async (event) => {
     currentRun = run;
     renderRun(run);
     await loadTrace(run.run_id);
+    await loadRunHistory();
     setStatus("研究运行完成", "下方可以查看入选因子、回测指标、研究报告和执行追踪。", "done");
   } catch (error) {
     showError(error.message || "运行失败");
@@ -106,6 +111,7 @@ document.querySelectorAll(".tab-button").forEach((button) => {
 
 renderRunConfig(buildRunPayload([]));
 setActiveLaunch("sample");
+loadRunHistory();
 
 function prepareLaunch(mode) {
   setActiveLaunch(mode);
@@ -210,6 +216,29 @@ async function loadTrace(runId) {
   updateWorkflow(body.events || []);
 }
 
+async function loadRunHistory() {
+  const response = await fetch("/runs?limit=8");
+  if (!response.ok) {
+    return;
+  }
+  const body = await response.json();
+  renderRunHistory(body.runs || []);
+}
+
+async function reopenRun(runId) {
+  clearError();
+  const response = await fetch(`/runs/${runId}`);
+  if (!response.ok) {
+    showError(await responseText(response, "无法打开历史实验"));
+    return;
+  }
+  const body = await response.json();
+  currentRun = body.response;
+  renderRun(body.response);
+  await loadTrace(runId);
+  setStatus("已打开历史实验", "当前展示的是历史研究结果，可继续查看报告、图表和审计链。", "done");
+}
+
 function renderRun(run) {
   runIdEl.textContent = run.run_id;
   selectedCount.textContent = run.selected_factors.length;
@@ -229,8 +258,32 @@ function renderRun(run) {
   renderMetrics(metrics);
   renderSources(run.factor_specs);
   renderArtifacts(run.artifacts || []);
+  renderSourceDiagnostics(run.source_diagnostics || {});
+  renderBacktestAssumptions(run.backtest_assumptions || {});
+  renderAuditTrail(run.audit_trail || []);
   reportOutput.textContent = run.report_markdown || "接口未返回研究报告。";
   rawOutput.textContent = JSON.stringify(run, null, 2);
+}
+
+function renderRunHistory(runs) {
+  runHistory.classList.toggle("empty-state", runs.length === 0);
+  if (!runs.length) {
+    runHistory.innerHTML = "暂无历史实验。";
+    return;
+  }
+  runHistory.innerHTML = runs
+    .map(
+      (run) => `
+        <button class="history-item" type="button" data-run-id="${escapeHtml(run.run_id)}">
+          <span>${escapeHtml(run.research_topic)}</span>
+          <small>${escapeHtml(run.selected_count)} 个入选 · ${escapeHtml(run.updated_at)}</small>
+        </button>
+      `,
+    )
+    .join("");
+  runHistory.querySelectorAll(".history-item").forEach((button) => {
+    button.addEventListener("click", () => reopenRun(button.dataset.runId));
+  });
 }
 
 function renderFactor(factor) {
@@ -358,6 +411,71 @@ function renderArtifacts(artifacts) {
     </div>
     <div class="download-grid">
       ${files.map(renderDownloadArtifact).join("")}
+    </div>
+  `;
+}
+
+function renderSourceDiagnostics(diagnostics) {
+  const accepted = diagnostics.accepted || [];
+  const rejected = diagnostics.rejected || [];
+  sourceDiagnostics.classList.toggle("empty-state", !accepted.length && !rejected.length);
+  if (!accepted.length && !rejected.length) {
+    sourceDiagnostics.innerHTML = "运行后展示接受和过滤的资料来源。";
+    return;
+  }
+  sourceDiagnostics.innerHTML = `
+    <div class="diagnostic-kpis">
+      <span>接受 ${escapeHtml(diagnostics.accepted_count || accepted.length)}</span>
+      <span>过滤 ${escapeHtml(diagnostics.rejected_count || rejected.length)}</span>
+    </div>
+    ${accepted.slice(0, 4).map((item) => renderDiagnosticRow(item, "接受")).join("")}
+    ${rejected.slice(0, 4).map((item) => renderDiagnosticRow(item, "过滤")).join("")}
+  `;
+}
+
+function renderBacktestAssumptions(assumptions) {
+  const entries = [
+    ["股票池", assumptions.universe],
+    ["区间", assumptions.start_date && `${assumptions.start_date} 至 ${assumptions.end_date}`],
+    ["数据源", assumptions.data_provider],
+    ["调仓", assumptions.rebalance_frequency],
+    ["交易成本", `${assumptions.transaction_cost_bps ?? 0} bps`],
+  ].filter((item) => item[1]);
+  backtestAssumptions.classList.toggle("empty-state", entries.length === 0);
+  if (!entries.length) {
+    backtestAssumptions.innerHTML = "运行后展示股票池、数据源、交易成本和偏差提示。";
+    return;
+  }
+  backtestAssumptions.innerHTML = `
+    ${entries.map(([label, value]) => `<div class="diagnostic-row"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(value)}</span></div>`).join("")}
+    ${(assumptions.bias_notes || []).map((item) => `<p class="diagnostic-note">${escapeHtml(item)}</p>`).join("")}
+  `;
+}
+
+function renderAuditTrail(entries) {
+  auditTrail.classList.toggle("empty-state", entries.length === 0);
+  if (!entries.length) {
+    auditTrail.innerHTML = "运行后展示资料选择、因子抽取、DSL 校验和筛选解释。";
+    return;
+  }
+  auditTrail.innerHTML = entries
+    .map(
+      (item) => `
+        <article class="audit-item">
+          <strong>${escapeHtml(item.title)}</strong>
+          <p>${escapeHtml(item.detail)}</p>
+        </article>
+      `,
+    )
+    .join("");
+}
+
+function renderDiagnosticRow(item, label) {
+  return `
+    <div class="diagnostic-row">
+      <strong>${escapeHtml(label)}</strong>
+      <span>${escapeHtml(item.title || item.url || "未知来源")}</span>
+      <small>${escapeHtml(item.reason || item.policy || item.source_type || "")}</small>
     </div>
   `;
 }

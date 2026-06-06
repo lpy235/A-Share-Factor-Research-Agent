@@ -165,6 +165,16 @@
               <span>行情数据：内置示例数据</span>
             </div>
           </section>
+
+          <section class="panel-section compact-card">
+            <div class="section-heading compact">
+              <div>
+                <p class="eyebrow">历史</p>
+                <h2>最近实验</h2>
+              </div>
+            </div>
+            <div id="run-history" class="history-list empty-state">暂无历史实验。</div>
+          </section>
         </aside>
 
         <section class="main-panel" aria-live="polite">
@@ -261,6 +271,42 @@
               </div>
               <div id="artifact-list" class="artifact-list empty-state">
                 运行后展示图表预览、Markdown 报告和 JSON 研究包下载入口。
+              </div>
+            </article>
+
+            <article class="result-card source-diagnostics-card">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">来源策略</p>
+                  <h3>公开资料诊断</h3>
+                </div>
+              </div>
+              <div id="source-diagnostics" class="diagnostic-list empty-state">
+                运行后展示接受和过滤的资料来源。
+              </div>
+            </article>
+
+            <article class="result-card assumptions-card">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">回测边界</p>
+                  <h3>A股假设</h3>
+                </div>
+              </div>
+              <div id="backtest-assumptions" class="diagnostic-list empty-state">
+                运行后展示股票池、数据源、交易成本和偏差提示。
+              </div>
+            </article>
+
+            <article class="result-card audit-card wide-card">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">解释</p>
+                  <h3>Agent 审计链</h3>
+                </div>
+              </div>
+              <div id="audit-trail" class="audit-list empty-state">
+                运行后展示资料选择、因子抽取、DSL 校验和筛选解释。
               </div>
             </article>
 

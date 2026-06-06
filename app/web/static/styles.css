@@ -887,6 +887,42 @@ input:focus {
   font-size: 12px;
 }
 
+.history-list {
+  display: grid;
+  gap: 8px;
+}
+
+.history-item {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  min-height: 54px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  color: var(--ink);
+  padding: 9px 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.history-item span,
+.history-item small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-item span {
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.history-item small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .error-box {
   margin-bottom: 12px;
   border: 1px solid rgba(167, 55, 55, 0.28);
@@ -894,6 +930,65 @@ input:focus {
   background: var(--danger-soft);
   color: var(--danger);
   padding: 12px;
+}
+
+.diagnostic-list,
+.audit-list {
+  display: grid;
+  gap: 10px;
+}
+
+.diagnostic-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.diagnostic-kpis span,
+.diagnostic-row,
+.audit-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  padding: 10px;
+}
+
+.diagnostic-kpis span {
+  color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.diagnostic-row {
+  display: grid;
+  gap: 4px;
+}
+
+.diagnostic-row strong,
+.audit-item strong {
+  font-size: 13px;
+}
+
+.diagnostic-row span,
+.diagnostic-row small,
+.diagnostic-note,
+.audit-item p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.diagnostic-row span,
+.diagnostic-row small {
+  overflow-wrap: anywhere;
+}
+
+.diagnostic-note {
+  margin: 0;
+}
+
+.audit-item p {
+  margin: 6px 0 0;
 }
 
 .api-panel {

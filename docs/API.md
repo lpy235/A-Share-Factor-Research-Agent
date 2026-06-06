@@ -77,7 +77,26 @@ factor_specs
 metrics
 report_markdown
 artifacts
+source_diagnostics
+backtest_assumptions
+audit_trail
 ```
+
+## List Runs
+
+```http
+GET /runs
+```
+
+Returns recent completed runs with topic, status, selected-factor count, factor count, and timestamps.
+
+## Get Run
+
+```http
+GET /runs/{run_id}
+```
+
+Returns the saved run metadata, original config, and full response payload so the dashboard can reopen historical experiments.
 
 ## List Trace Events
 

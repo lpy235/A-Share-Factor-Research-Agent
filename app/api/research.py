@@ -7,6 +7,7 @@ from app.agents.graph import run_research_workflow
 from app.storage.db import init_db
 from app.storage.artifacts import ArtifactStore
 from app.storage.events import EventStore
+from app.storage.runs import RunStore
 
 router = APIRouter(prefix="/research", tags=["research"])
 
@@ -14,6 +15,7 @@ DB_PATH = "runs.db"
 init_db(DB_PATH)
 event_store = EventStore(DB_PATH)
 artifact_store = ArtifactStore()
+run_store = RunStore(DB_PATH)
 
 
 class ResearchRunRequest(BaseModel):
@@ -40,6 +42,7 @@ class ResearchRunRequest(BaseModel):
 @router.post("/runs")
 def create_research_run(request: ResearchRunRequest):
     run_id = f"run_{uuid4().hex[:12]}"
+    request_config = request.model_dump()
     document_paths = []
     if request.document_ids:
         from app.storage.documents import DocumentStore
@@ -107,7 +110,7 @@ def create_research_run(request: ResearchRunRequest):
         factor_specs=state.get("factor_specs", []),
         selected_factors=state.get("selected_factors", []),
     )
-    return {
+    response = {
         "run_id": run_id,
         "status": "completed",
         "selected_factors": state.get("selected_factors", []),
@@ -115,4 +118,15 @@ def create_research_run(request: ResearchRunRequest):
         "metrics": state.get("metrics", []),
         "report_markdown": state["report_markdown"],
         "artifacts": artifacts,
+        "source_diagnostics": state.get("source_diagnostics", {}),
+        "backtest_assumptions": state.get("backtest_assumptions", {}),
+        "audit_trail": state.get("audit_trail", []),
     }
+    run_store.save_run(
+        run_id,
+        research_topic=request.research_topic,
+        status="completed",
+        config=request_config,
+        response=response,
+    )
+    return response

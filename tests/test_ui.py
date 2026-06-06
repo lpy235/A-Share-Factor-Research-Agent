@@ -14,6 +14,7 @@ def test_dashboard_index_served():
     assert "从主题开始" in response.text
     assert "上传论文/研报" in response.text
     assert "高级设置" in response.text
+    assert "最近实验" in response.text
     assert "/docs" in response.text
     assert "/research/runs" in response.text
     assert 'id="run-form"' in response.text
@@ -22,7 +23,12 @@ def test_dashboard_index_served():
     assert 'id="source-list"' in response.text
     assert 'id="metrics-table"' in response.text
     assert 'id="artifact-list"' in response.text
+    assert 'id="run-history"' in response.text
+    assert 'id="source-diagnostics"' in response.text
+    assert 'id="backtest-assumptions"' in response.text
+    assert 'id="audit-trail"' in response.text
     assert "研究图表与下载" in response.text
+    assert "Agent 审计链" in response.text
     assert "/static/app.js" in response.text
 
 
@@ -37,11 +43,15 @@ def test_dashboard_static_assets_served():
     assert ".launch-grid" in css_response.text
     assert ".api-panel" in css_response.text
     assert ".artifact-list" in css_response.text
+    assert ".history-list" in css_response.text
+    assert ".audit-list" in css_response.text
     assert ".summary-grid" in css_response.text
     assert js_response.status_code == 200
     assert "prepareLaunch" in js_response.text
     assert "sourceModeLabels" in js_response.text
     assert "renderArtifacts" in js_response.text
+    assert "loadRunHistory" in js_response.text
+    assert "renderAuditTrail" in js_response.text
     assert "renderMetricSummary" in js_response.text
     assert "renderMetrics" in js_response.text
     assert "POST" in js_response.text

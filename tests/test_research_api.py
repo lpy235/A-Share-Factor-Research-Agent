@@ -20,7 +20,7 @@ def test_research_api_returns_v2_compatible_response_and_node_trace():
 
     assert response.status_code == 200
     body = response.json()
-    assert set(body) == {
+    assert {
         "run_id",
         "status",
         "selected_factors",
@@ -28,10 +28,16 @@ def test_research_api_returns_v2_compatible_response_and_node_trace():
         "metrics",
         "report_markdown",
         "artifacts",
-    }
+        "source_diagnostics",
+        "backtest_assumptions",
+        "audit_trail",
+    }.issubset(body)
     assert body["status"] == "completed"
     assert body["selected_factors"] == ["volume_price_momentum"]
     assert body["metrics"][0]["factor_name"] == "volume_price_momentum"
+    assert body["source_diagnostics"]["accepted_count"] >= 1
+    assert body["backtest_assumptions"]["universe"] == "CSI300"
+    assert body["audit_trail"]
     artifact_names = {item["name"] for item in body["artifacts"]}
     assert {"report.md", "bundle.json", "metric_overview.png", "factor_quality.png"}.issubset(
         artifact_names
@@ -60,6 +66,14 @@ def test_research_api_returns_v2_compatible_response_and_node_trace():
     chart_response = client.get(f"/runs/{body['run_id']}/artifacts/metric_overview.png")
     assert chart_response.status_code == 200
     assert chart_response.headers["content-type"] == "image/png"
+
+    runs_response = client.get("/runs")
+    assert runs_response.status_code == 200
+    assert any(item["run_id"] == body["run_id"] for item in runs_response.json()["runs"])
+
+    run_response = client.get(f"/runs/{body['run_id']}")
+    assert run_response.status_code == 200
+    assert run_response.json()["response"]["run_id"] == body["run_id"]
 
 
 def test_research_api_supports_auto_public_sources():

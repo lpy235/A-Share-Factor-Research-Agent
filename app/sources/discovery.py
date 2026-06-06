@@ -99,35 +99,85 @@ class PublicSourceDiscovery:
         max_sources: int = 3,
         allow_live_fetch: bool = False,
     ) -> list[DiscoveredSource]:
+        sources, _ = self.discover_with_diagnostics(query, max_sources, allow_live_fetch)
+        return sources
+
+    def discover_with_diagnostics(
+        self,
+        query: str,
+        max_sources: int = 3,
+        allow_live_fetch: bool = False,
+    ) -> tuple[list[DiscoveredSource], dict[str, Any]]:
         query_tokens = tokenize(query)
         candidates: list[DiscoveredSource] = []
+        diagnostics: dict[str, Any] = {
+            "query": query,
+            "allow_live_fetch": allow_live_fetch,
+            "candidate_count": len(self.seeds),
+            "accepted": [],
+            "rejected": [],
+            "live_fetch_attempted": 0,
+            "live_fetch_succeeded": 0,
+            "live_fetch_failed": 0,
+        }
         for source in self.seeds:
             url = source.get("url", "")
-            if not self.policy.check_url(url).allowed:
+            policy_result = self.policy.check_url(url)
+            if not policy_result.allowed:
+                diagnostics["rejected"].append(
+                    {
+                        "title": source.get("title", "public source"),
+                        "url": url,
+                        "reason": policy_result.reason,
+                    }
+                )
                 continue
 
             text = source.get("text", "")
             score = len(query_tokens & tokenize(f"{source.get('title', '')} {url} {text}"))
             if score <= 0:
+                diagnostics["rejected"].append(
+                    {
+                        "title": source.get("title", "public source"),
+                        "url": url,
+                        "reason": "query_not_matched",
+                    }
+                )
                 continue
 
             if allow_live_fetch:
+                diagnostics["live_fetch_attempted"] += 1
                 fetched = self._try_fetch(url)
                 if fetched:
                     text = fetched
+                    diagnostics["live_fetch_succeeded"] += 1
+                else:
+                    diagnostics["live_fetch_failed"] += 1
 
-            candidates.append(
-                DiscoveredSource(
-                    title=source.get("title", "public source"),
-                    url=url,
-                    source_type=source.get("source_type", "public_article"),
-                    text=text,
-                    score=score,
-                )
+            discovered = DiscoveredSource(
+                title=source.get("title", "public source"),
+                url=url,
+                source_type=source.get("source_type", "public_article"),
+                text=text,
+                score=score,
             )
+            diagnostics["accepted"].append(
+                {
+                    "title": discovered.title,
+                    "url": discovered.url,
+                    "source_type": discovered.source_type,
+                    "score": discovered.score,
+                    "policy": policy_result.reason,
+                }
+            )
+            candidates.append(discovered)
 
         candidates.sort(key=lambda item: item.score, reverse=True)
-        return candidates[:max_sources]
+        selected = candidates[:max_sources]
+        diagnostics["accepted_count"] = len(selected)
+        diagnostics["rejected_count"] = len(diagnostics["rejected"])
+        diagnostics["selected_urls"] = [source.url for source in selected]
+        return selected, diagnostics
 
     def _try_fetch(self, url: str) -> str | None:
         try:

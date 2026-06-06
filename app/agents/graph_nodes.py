@@ -3,6 +3,7 @@ from typing import Any
 
 import pandas as pd
 
+from app.agents.audit import build_audit_trail
 from app.agents.extraction import StructuredFactorExtractor
 from app.agents.graph_events import GraphEventTracer, run_traced_node
 from app.agents.nodes import extract_hypotheses_from_chunks, generate_factor_specs
@@ -42,6 +43,7 @@ def load_documents_node(state: ResearchState) -> ResearchState:
         lambda item: {
             "source_count": len(item.get("sources", [])),
             "discovered_source_count": len(item.get("discovered_sources", [])),
+            "source_diagnostics": item.get("source_diagnostics", {}),
         },
     )
 
@@ -122,6 +124,7 @@ def load_market_data_node(state: ResearchState) -> ResearchState:
         lambda item: {
             "market_data_summary": item.get("market_data_summary", {}),
             "market_data_diagnostics": item.get("market_data_diagnostics", {}),
+            "backtest_assumptions": item.get("backtest_assumptions", {}),
         },
     )
 
@@ -165,7 +168,10 @@ def generate_report_node(state: ResearchState) -> ResearchState:
             "factor_count": len(item.get("factor_specs", [])),
             "metric_count": len(item.get("metrics", [])),
         },
-        lambda item: {"report_length": len(item.get("report_markdown", ""))},
+        lambda item: {
+            "report_length": len(item.get("report_markdown", "")),
+            "audit_count": len(item.get("audit_trail", [])),
+        },
     )
 
 
@@ -185,17 +191,36 @@ def _load_documents(state: ResearchState, tracer: GraphEventTracer) -> ResearchS
                 tracer.node_fallback("LoadDocumentsNode", {"reason": "document_parse_failed", "path": path})
 
     discovered_sources = []
+    source_diagnostics: dict[str, Any] = {
+        "mode": source_mode,
+        "accepted_count": 0,
+        "rejected_count": 0,
+        "accepted": [],
+        "rejected": [],
+    }
     if source_mode in {"auto", "hybrid"}:
-        discovered = PublicSourceDiscovery().discover(
+        discovered, discovery_diagnostics = PublicSourceDiscovery().discover_with_diagnostics(
             query=state["research_topic"],
             max_sources=state.get("max_sources", 3),
             allow_live_fetch=state.get("allow_live_fetch", False),
         )
         discovered_sources = [source.to_source_dict() for source in discovered]
+        source_diagnostics = {**source_diagnostics, **discovery_diagnostics, "mode": source_mode}
         if not discovered_sources:
             tracer.node_fallback("LoadDocumentsNode", {"reason": "public_source_discovery_empty"})
 
     sources = [_document_to_dict(document) for document in documents] + discovered_sources
+    uploaded_diagnostics = [
+        {
+            "title": document.source_title,
+            "url": document.source_url,
+            "source_type": document.source_type,
+            "policy": "user_upload",
+        }
+        for document in documents
+    ]
+    if uploaded_diagnostics:
+        source_diagnostics["accepted"] = uploaded_diagnostics + source_diagnostics.get("accepted", [])
     if source_mode not in {"auto", "upload", "hybrid"}:
         warnings.append(f"Unknown source_mode={source_mode}; using deterministic demo source.")
         tracer.node_fallback("LoadDocumentsNode", {"reason": "unknown_source_mode", "source_mode": source_mode})
@@ -208,10 +233,21 @@ def _load_documents(state: ResearchState, tracer: GraphEventTracer) -> ResearchS
 
     if not sources:
         sources = [_document_to_dict(_demo_document())]
+        source_diagnostics["accepted"] = [
+            {
+                "title": "demo factor note",
+                "url": None,
+                "source_type": "user_upload",
+                "policy": "deterministic_fallback",
+            }
+        ]
         tracer.node_fallback("LoadDocumentsNode", {"reason": "using_demo_source"})
 
+    source_diagnostics["accepted_count"] = len(sources)
+    source_diagnostics["rejected_count"] = len(source_diagnostics.get("rejected", []))
     state["sources"] = sources
     state["discovered_sources"] = discovered_sources
+    state["source_diagnostics"] = source_diagnostics
     state["warnings"] = warnings
     return state
 
@@ -401,6 +437,7 @@ def _load_market_data(state: ResearchState, tracer: GraphEventTracer) -> Researc
         "start_date": str(data.index.get_level_values("date").min().date()),
         "end_date": str(data.index.get_level_values("date").max().date()),
     }
+    state["backtest_assumptions"] = _build_backtest_assumptions(state, diagnostics)
     return state
 
 
@@ -562,6 +599,7 @@ def _generate_report(state: ResearchState, tracer: GraphEventTracer) -> Research
         data_limitation = "当前报告使用 AKShare A 股日线数据；数据可用性取决于公开接口状态。"
     else:
         data_limitation = "当前报告使用 fixture 数据演示完整流程。"
+    state["audit_trail"] = build_audit_trail(state)
     state["report_markdown"] = render_report(
         research_topic=state["research_topic"],
         sources=[
@@ -570,6 +608,9 @@ def _generate_report(state: ResearchState, tracer: GraphEventTracer) -> Research
         ],
         factors=state.get("factor_specs", []),
         metrics=state.get("metrics", []),
+        source_diagnostics=state.get("source_diagnostics", {}),
+        backtest_assumptions=state.get("backtest_assumptions", {}),
+        audit_trail=state.get("audit_trail", []),
         limitations=[
             data_limitation,
             "正式研究需要使用合法、稳定、可复现的 A 股数据源。",
@@ -577,6 +618,30 @@ def _generate_report(state: ResearchState, tracer: GraphEventTracer) -> Research
         ],
     )
     return state
+
+
+def _build_backtest_assumptions(
+    state: ResearchState,
+    diagnostics: dict[str, Any],
+) -> dict[str, Any]:
+    provider = diagnostics.get("provider", state.get("data_provider", "fixture"))
+    return {
+        "universe": state.get("universe", "CSI300"),
+        "start_date": state.get("start_date", "2020-01-01"),
+        "end_date": state.get("end_date", "2020-12-31"),
+        "data_provider": provider,
+        "fallback_used": bool(diagnostics.get("fallback_used", False)),
+        "rebalance_frequency": "daily",
+        "forward_return_period": "1 trading day",
+        "transaction_cost_bps": 0,
+        "adjustment": "fixture 模式使用确定性示例日线；AKShare 模式依赖公开接口返回的数据。",
+        "universe_note": "当前股票池最多取前 20 个标的用于可复现实验演示。",
+        "bias_notes": [
+            "fixture 数据不代表真实 A 股全市场表现。",
+            "真实研究需要处理停牌、涨跌停、复权、ST、退市和生存者偏差。",
+            "当前回测不执行真实交易，也不构成投资建议。",
+        ],
+    }
 
 
 def _safe_float(value: float) -> float:

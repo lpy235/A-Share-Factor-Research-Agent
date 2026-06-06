@@ -12,6 +12,9 @@ def test_report_contains_disclaimer_and_sections():
     assert "A股量价类动量因子" in report
     assert "历史回测不构成投资建议" in report
     assert "资料摘要" in report
+    assert "来源诊断" in report
     assert "回测校验指标" in report
+    assert "回测假设" in report
+    assert "Agent 审计解释" in report
     assert "可复现性" in report
     assert "momentum_20" in report

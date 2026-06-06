@@ -24,6 +24,9 @@ class ResearchState(TypedDict, total=False):
     fallback_to_fixture: bool
     market_data_cache_dir: str
     market_data_diagnostics: dict
+    source_diagnostics: dict
+    backtest_assumptions: dict
+    audit_trail: list[dict]
     sources: list[dict]
     discovered_sources: list[dict]
     chunks: list[dict]

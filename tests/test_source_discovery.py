@@ -55,3 +55,29 @@ def test_public_source_discovery_uses_seed_text_when_live_fetch_fails():
     results = discovery.discover("量价动量", allow_live_fetch=True)
 
     assert results[0].text == "成交量放大且价格上涨，可构造量价动量因子。"
+
+
+def test_public_source_discovery_returns_diagnostics():
+    discovery = PublicSourceDiscovery(
+        seeds=[
+            {
+                "title": "公开量价研究",
+                "url": "https://example.com/public/volume-price",
+                "source_type": "public_article",
+                "text": "成交量放大且价格上涨，可构造量价动量因子。",
+            },
+            {
+                "title": "登录研报",
+                "url": "https://broker.example.com/login/report/123",
+                "source_type": "public_report",
+                "text": "成交量放大。",
+            },
+        ]
+    )
+
+    results, diagnostics = discovery.discover_with_diagnostics("量价动量", max_sources=5)
+
+    assert len(results) == 1
+    assert diagnostics["accepted_count"] == 1
+    assert diagnostics["rejected_count"] == 1
+    assert diagnostics["rejected"][0]["reason"] == "login_required_hint"
