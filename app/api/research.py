@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from app.agents.graph import run_research_workflow
 from app.storage.db import init_db
+from app.storage.artifacts import ArtifactStore
 from app.storage.events import EventStore
 
 router = APIRouter(prefix="/research", tags=["research"])
@@ -12,6 +13,7 @@ router = APIRouter(prefix="/research", tags=["research"])
 DB_PATH = "runs.db"
 init_db(DB_PATH)
 event_store = EventStore(DB_PATH)
+artifact_store = ArtifactStore()
 
 
 class ResearchRunRequest(BaseModel):
@@ -98,6 +100,13 @@ def create_research_run(request: ResearchRunRequest):
             "selected_factors": state.get("selected_factors", []),
         },
     )
+    artifacts = artifact_store.write_run_artifacts(
+        run_id,
+        report_markdown=state["report_markdown"],
+        metrics=state.get("metrics", []),
+        factor_specs=state.get("factor_specs", []),
+        selected_factors=state.get("selected_factors", []),
+    )
     return {
         "run_id": run_id,
         "status": "completed",
@@ -105,4 +114,5 @@ def create_research_run(request: ResearchRunRequest):
         "factor_specs": state.get("factor_specs", []),
         "metrics": state.get("metrics", []),
         "report_markdown": state["report_markdown"],
+        "artifacts": artifacts,
     }

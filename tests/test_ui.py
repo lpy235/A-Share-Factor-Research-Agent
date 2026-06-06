@@ -21,6 +21,8 @@ def test_dashboard_index_served():
     assert 'id="metric-summary"' in response.text
     assert 'id="source-list"' in response.text
     assert 'id="metrics-table"' in response.text
+    assert 'id="artifact-list"' in response.text
+    assert "研究图表与下载" in response.text
     assert "/static/app.js" in response.text
 
 
@@ -34,10 +36,12 @@ def test_dashboard_static_assets_served():
     assert ".workspace-grid" in css_response.text
     assert ".launch-grid" in css_response.text
     assert ".api-panel" in css_response.text
+    assert ".artifact-list" in css_response.text
     assert ".summary-grid" in css_response.text
     assert js_response.status_code == 200
     assert "prepareLaunch" in js_response.text
     assert "sourceModeLabels" in js_response.text
+    assert "renderArtifacts" in js_response.text
     assert "renderMetricSummary" in js_response.text
     assert "renderMetrics" in js_response.text
     assert "POST" in js_response.text

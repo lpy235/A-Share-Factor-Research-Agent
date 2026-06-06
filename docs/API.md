@@ -74,7 +74,9 @@ run_id
 status
 selected_factors
 factor_specs
+metrics
 report_markdown
+artifacts
 ```
 
 ## List Trace Events
@@ -93,6 +95,31 @@ GET /runs/{run_id}/events/stream
 
 Returns server-sent event frames for simple live trace inspection.
 
+## List Run Artifacts
+
+```http
+GET /runs/{run_id}/artifacts
+```
+
+Returns downloadable artifacts for the run, including Markdown report, JSON data files, and PNG charts.
+
+## Download Run Artifact
+
+```http
+GET /runs/{run_id}/artifacts/{artifact_name}
+```
+
+Supported artifact names include:
+
+```text
+report.md
+metrics.json
+factors.json
+bundle.json
+metric_overview.png
+factor_quality.png
+```
+
 ## Dashboard
 
 ```http
@@ -105,4 +132,3 @@ Serves the browser research workbench. Static assets are served from:
 GET /static/styles.css
 GET /static/app.js
 ```
-

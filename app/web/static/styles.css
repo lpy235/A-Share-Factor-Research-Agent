@@ -611,6 +611,71 @@ input:focus {
   white-space: nowrap;
 }
 
+.artifact-list {
+  display: grid;
+  gap: 14px;
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.chart-artifact {
+  min-width: 0;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  overflow: hidden;
+}
+
+.chart-artifact img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 1;
+  object-fit: contain;
+  background: #fff;
+}
+
+.chart-artifact figcaption {
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  padding: 9px 10px;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.download-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.download-artifact {
+  display: grid;
+  gap: 5px;
+  min-height: 68px;
+  border: 1px solid rgba(31, 95, 159, 0.24);
+  border-radius: 8px;
+  background: var(--blue-soft);
+  color: var(--blue);
+  padding: 11px;
+  text-decoration: none;
+}
+
+.download-artifact span {
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.download-artifact small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .chip-row {
   display: flex;
   flex-wrap: wrap;
@@ -942,6 +1007,10 @@ input:focus {
   .summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .download-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 620px) {
@@ -951,7 +1020,9 @@ input:focus {
 
   .field-grid,
   .metric-strip,
-  .summary-grid {
+  .summary-grid,
+  .chart-grid,
+  .download-grid {
     grid-template-columns: 1fr;
   }
 

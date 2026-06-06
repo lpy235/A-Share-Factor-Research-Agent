@@ -16,6 +16,7 @@ const metricsTable = document.querySelector("#metrics-table");
 const reportOutput = document.querySelector("#report-output");
 const traceList = document.querySelector("#trace-list");
 const rawOutput = document.querySelector("#raw-output");
+const artifactList = document.querySelector("#artifact-list");
 const runConfig = document.querySelector("#run-config");
 const uploadInput = document.querySelector("#document-file");
 const uploadLabel = document.querySelector("#upload-label");
@@ -227,6 +228,7 @@ function renderRun(run) {
   renderMetricSummary(metrics);
   renderMetrics(metrics);
   renderSources(run.factor_specs);
+  renderArtifacts(run.artifacts || []);
   reportOutput.textContent = run.report_markdown || "接口未返回研究报告。";
   rawOutput.textContent = JSON.stringify(run, null, 2);
 }
@@ -339,6 +341,51 @@ function renderSources(factors) {
   sourceList.innerHTML = sources.length
     ? sources.map(renderSource).join("")
     : "运行后展示因子和资料来源的对应关系。";
+}
+
+function renderArtifacts(artifacts) {
+  artifactList.classList.toggle("empty-state", artifacts.length === 0);
+  if (!artifacts.length) {
+    artifactList.innerHTML = "运行后展示图表预览、Markdown 报告和 JSON 研究包下载入口。";
+    return;
+  }
+
+  const charts = artifacts.filter((artifact) => artifact.kind === "chart");
+  const files = artifacts.filter((artifact) => artifact.kind !== "chart");
+  artifactList.innerHTML = `
+    <div class="chart-grid">
+      ${charts.map(renderChartArtifact).join("")}
+    </div>
+    <div class="download-grid">
+      ${files.map(renderDownloadArtifact).join("")}
+    </div>
+  `;
+}
+
+function renderChartArtifact(artifact) {
+  return `
+    <figure class="chart-artifact">
+      <img src="${escapeHtml(artifact.url)}" alt="${escapeHtml(artifact.label)}" loading="lazy" />
+      <figcaption>${escapeHtml(artifact.label)}</figcaption>
+    </figure>
+  `;
+}
+
+function renderDownloadArtifact(artifact) {
+  return `
+    <a class="download-artifact" href="${escapeHtml(artifact.url)}" target="_blank" rel="noreferrer">
+      <span>${escapeHtml(artifact.label)}</span>
+      <small>${escapeHtml(formatBytes(artifact.size_bytes))}</small>
+    </a>
+  `;
+}
+
+function formatBytes(value) {
+  const bytes = Number(value || 0);
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  return `${(bytes / 1024).toFixed(1)} KB`;
 }
 
 function renderSource(source) {

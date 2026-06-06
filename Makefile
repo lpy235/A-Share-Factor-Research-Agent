@@ -1,5 +1,5 @@
-PYTHON ?= python
-UVICORN ?= uvicorn
+PYTHON ?= .venv/bin/python
+UVICORN ?= .venv/bin/uvicorn
 HOST ?= 127.0.0.1
 PORT ?= 8000
 
@@ -32,4 +32,3 @@ smoke:
 clean-local:
 	rm -rf .pytest_cache
 	find app tests -type d -name __pycache__ -prune -exec rm -rf {} +
-

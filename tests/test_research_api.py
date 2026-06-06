@@ -27,10 +27,15 @@ def test_research_api_returns_v2_compatible_response_and_node_trace():
         "factor_specs",
         "metrics",
         "report_markdown",
+        "artifacts",
     }
     assert body["status"] == "completed"
     assert body["selected_factors"] == ["volume_price_momentum"]
     assert body["metrics"][0]["factor_name"] == "volume_price_momentum"
+    artifact_names = {item["name"] for item in body["artifacts"]}
+    assert {"report.md", "bundle.json", "metric_overview.png", "factor_quality.png"}.issubset(
+        artifact_names
+    )
 
     events_response = client.get(f"/runs/{body['run_id']}/events")
     assert events_response.status_code == 200
@@ -43,6 +48,18 @@ def test_research_api_returns_v2_compatible_response_and_node_trace():
         event["node"] == "GenerateReportNode" and event["event_type"] == "run_completed"
         for event in events
     )
+
+    artifacts_response = client.get(f"/runs/{body['run_id']}/artifacts")
+    assert artifacts_response.status_code == 200
+    assert artifacts_response.json()["artifacts"]
+
+    report_response = client.get(f"/runs/{body['run_id']}/artifacts/report.md")
+    assert report_response.status_code == 200
+    assert "历史回测不构成投资建议" in report_response.text
+
+    chart_response = client.get(f"/runs/{body['run_id']}/artifacts/metric_overview.png")
+    assert chart_response.status_code == 200
+    assert chart_response.headers["content-type"] == "image/png"
 
 
 def test_research_api_supports_auto_public_sources():

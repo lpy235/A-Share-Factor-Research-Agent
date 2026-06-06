@@ -252,6 +252,18 @@
               <div id="metrics-table" class="table-wrap empty-state">暂无指标。</div>
             </article>
 
+            <article class="result-card artifact-card wide-card">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">产物</p>
+                  <h3>研究图表与下载</h3>
+                </div>
+              </div>
+              <div id="artifact-list" class="artifact-list empty-state">
+                运行后展示图表预览、Markdown 报告和 JSON 研究包下载入口。
+              </div>
+            </article>
+
             <article class="result-card report-card">
               <div class="tab-row" role="tablist" aria-label="运行详情">
                 <button class="tab-button active" type="button" data-tab="report">研究报告</button>
@@ -289,6 +301,7 @@
               <span><strong>POST</strong> /documents</span>
               <span><strong>GET</strong> /runs/{run_id}/events</span>
               <span><strong>GET</strong> /runs/{run_id}/events/stream</span>
+              <span><strong>GET</strong> /runs/{run_id}/artifacts</span>
             </div>
             <pre class="curl-box">curl -X POST http://127.0.0.1:8000/research/runs \
   -H "Content-Type: application/json" \

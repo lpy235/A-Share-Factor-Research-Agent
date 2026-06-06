@@ -23,6 +23,28 @@ The project is a working MVP:
 4. Add model-backed embeddings as an optional retrieval backend.
 5. Add stronger A-share universe/date handling and survivorship-bias notes.
 
+## Completion Route
+
+### V9 Research Artifacts
+
+Make each run produce a visible artifact set: charts, metrics JSON, factor JSON, Markdown report, and a downloadable bundle. Add artifact list/download APIs and surface them in the dashboard.
+
+### V10 Experiment History
+
+Persist completed runs with configuration, response payload, timestamps, and status. Add recent-run listing and reopening from the dashboard.
+
+### V11 Public Source Discovery
+
+Connect optional live public search behind source-policy gates. Preserve deterministic fallback sources and expose accepted/rejected source diagnostics.
+
+### V12 A-Share Backtest Assumptions
+
+Add explicit universe/date diagnostics, transaction-cost and rebalance assumptions, stronger data-provider notes, and bias warnings for fixture and public data providers.
+
+### V13 Agent Audit Trail
+
+Turn raw workflow events into readable explanations: why sources were used, why factors were extracted, why factors passed or failed selection, and where fallbacks occurred.
+
 ## Out Of Scope
 
 - Auto-trading
@@ -30,4 +52,3 @@ The project is a working MVP:
 - Stock recommendations
 - Return promises
 - Paid/login-required research scraping
-
