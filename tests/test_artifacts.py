@@ -20,15 +20,30 @@ def test_artifact_store_writes_manifest_and_downloadable_files(tmp_path):
         ],
         factor_specs=[{"factor_name": "momentum_20", "formula": "rank(returns(close, 20))"}],
         selected_factors=["momentum_20"],
+        backtest_series={
+            "momentum_20": {
+                "rank_ic": [{"date": "2020-01-01", "value": 0.1}],
+                "cumulative_rank_ic": [{"date": "2020-01-01", "value": 0.1}],
+                "equity_curve": [{"date": "2020-01-01", "value": 1.01}],
+                "drawdown": [{"date": "2020-01-01", "value": 0.0}],
+                "grouped_returns": [{"date": "2020-01-01", "1": 0.01, "5": 0.03}],
+            }
+        },
     )
 
     names = {item["name"] for item in artifacts}
     assert names == {
+        "backtest_series.json",
         "bundle.json",
+        "cumulative_ic.png",
+        "drawdown_curve.png",
         "factor_quality.png",
         "factors.json",
+        "grouped_returns.png",
+        "long_short_equity.png",
         "metric_overview.png",
         "metrics.json",
+        "rank_ic_timeseries.png",
         "report.md",
     }
     assert all(item["size_bytes"] > 0 for item in artifacts)

@@ -29,6 +29,8 @@ The project is a working MVP:
 
 Make each run produce a visible artifact set: charts, metrics JSON, factor JSON, Markdown report, and a downloadable bundle. Add artifact list/download APIs and surface them in the dashboard.
 
+V14 extends this artifact layer with real backtest series: Rank IC time series, cumulative IC, long-short equity, drawdown, grouped returns, and `backtest_series.json`.
+
 ### V10 Experiment History
 
 Persist completed runs with configuration, response payload, timestamps, and status. Add recent-run listing and reopening from the dashboard.

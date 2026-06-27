@@ -540,6 +540,7 @@ def _run_backtest(state: ResearchState, tracer: GraphEventTracer) -> ResearchSta
         raise ValueError("Factor values are missing before backtest")
 
     metrics = []
+    backtest_series = {}
     forward_returns = compute_forward_returns(data["close"], periods=1)
     for factor_name, factor in factor_values.items():
         rank_ic = compute_rank_ic(factor, forward_returns)
@@ -548,6 +549,8 @@ def _run_backtest(state: ResearchState, tracer: GraphEventTracer) -> ResearchSta
             long_short = grouped[5] - grouped[1]
         else:
             long_short = grouped.mean(axis=1) * 0
+        equity_curve = (1 + long_short.fillna(0)).cumprod()
+        drawdown = equity_curve / equity_curve.cummax() - 1
         rank_ic_std = rank_ic.std()
         metrics.append(
             {
@@ -560,7 +563,16 @@ def _run_backtest(state: ResearchState, tracer: GraphEventTracer) -> ResearchSta
                 "sharpe": round(sharpe_ratio(long_short), 6),
             }
         )
+        backtest_series[factor_name] = {
+            "rank_ic": _series_to_points(rank_ic),
+            "cumulative_rank_ic": _series_to_points(rank_ic.fillna(0).cumsum()),
+            "long_short_returns": _series_to_points(long_short),
+            "equity_curve": _series_to_points(equity_curve),
+            "drawdown": _series_to_points(drawdown),
+            "grouped_returns": _frame_to_records(grouped),
+        }
     state["metrics"] = metrics
+    state["backtest_series"] = backtest_series
     return state
 
 
@@ -648,6 +660,29 @@ def _safe_float(value: float) -> float:
     if value is None or math.isnan(value) or math.isinf(value):
         return 0.0
     return float(value)
+
+
+def _series_to_points(series: pd.Series) -> list[dict[str, Any]]:
+    clean = series.dropna()
+    return [
+        {
+            "date": str(index.date() if hasattr(index, "date") else index),
+            "value": round(_safe_float(value), 8),
+        }
+        for index, value in clean.items()
+    ]
+
+
+def _frame_to_records(frame: pd.DataFrame) -> list[dict[str, Any]]:
+    if frame.empty:
+        return []
+    records = []
+    for index, row in frame.dropna(how="all").iterrows():
+        item = {"date": str(index.date() if hasattr(index, "date") else index)}
+        for column, value in row.items():
+            item[str(column)] = round(_safe_float(value), 8)
+        records.append(item)
+    return records
 
 
 def _demo_document() -> ParsedDocument:

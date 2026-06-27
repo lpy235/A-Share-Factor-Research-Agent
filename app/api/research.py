@@ -109,6 +109,7 @@ def create_research_run(request: ResearchRunRequest):
         metrics=state.get("metrics", []),
         factor_specs=state.get("factor_specs", []),
         selected_factors=state.get("selected_factors", []),
+        backtest_series=state.get("backtest_series", {}),
     )
     response = {
         "run_id": run_id,
@@ -116,6 +117,7 @@ def create_research_run(request: ResearchRunRequest):
         "selected_factors": state.get("selected_factors", []),
         "factor_specs": state.get("factor_specs", []),
         "metrics": state.get("metrics", []),
+        "backtest_series": state.get("backtest_series", {}),
         "report_markdown": state["report_markdown"],
         "artifacts": artifacts,
         "source_diagnostics": state.get("source_diagnostics", {}),

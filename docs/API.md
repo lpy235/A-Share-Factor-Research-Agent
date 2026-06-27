@@ -75,6 +75,7 @@ status
 selected_factors
 factor_specs
 metrics
+backtest_series
 report_markdown
 artifacts
 source_diagnostics
@@ -133,10 +134,16 @@ Supported artifact names include:
 ```text
 report.md
 metrics.json
+backtest_series.json
 factors.json
 bundle.json
 metric_overview.png
 factor_quality.png
+rank_ic_timeseries.png
+cumulative_ic.png
+long_short_equity.png
+drawdown_curve.png
+grouped_returns.png
 ```
 
 ## Dashboard

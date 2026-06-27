@@ -26,6 +26,7 @@ def test_research_api_returns_v2_compatible_response_and_node_trace():
         "selected_factors",
         "factor_specs",
         "metrics",
+        "backtest_series",
         "report_markdown",
         "artifacts",
         "source_diagnostics",
@@ -35,13 +36,21 @@ def test_research_api_returns_v2_compatible_response_and_node_trace():
     assert body["status"] == "completed"
     assert body["selected_factors"] == ["volume_price_momentum"]
     assert body["metrics"][0]["factor_name"] == "volume_price_momentum"
+    assert body["backtest_series"]["volume_price_momentum"]["rank_ic"]
     assert body["source_diagnostics"]["accepted_count"] >= 1
     assert body["backtest_assumptions"]["universe"] == "CSI300"
     assert body["audit_trail"]
     artifact_names = {item["name"] for item in body["artifacts"]}
-    assert {"report.md", "bundle.json", "metric_overview.png", "factor_quality.png"}.issubset(
-        artifact_names
-    )
+    assert {
+        "report.md",
+        "bundle.json",
+        "backtest_series.json",
+        "metric_overview.png",
+        "factor_quality.png",
+        "rank_ic_timeseries.png",
+        "long_short_equity.png",
+        "grouped_returns.png",
+    }.issubset(artifact_names)
 
     events_response = client.get(f"/runs/{body['run_id']}/events")
     assert events_response.status_code == 200

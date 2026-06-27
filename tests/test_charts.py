@@ -1,9 +1,14 @@
 import pandas as pd
 
 from app.reports.charts import (
+    save_cumulative_ic_chart,
+    save_drawdown_chart,
     save_equity_curve,
+    save_equity_curve_chart,
     save_factor_quality_chart,
+    save_grouped_returns_chart,
     save_metric_overview_chart,
+    save_rank_ic_chart,
 )
 
 
@@ -37,3 +42,40 @@ def test_metric_artifact_charts_create_pngs(tmp_path):
     assert overview_path.stat().st_size > 0
     assert quality_path.exists()
     assert quality_path.stat().st_size > 0
+
+
+def test_backtest_series_charts_create_pngs(tmp_path):
+    series = {
+        "momentum_20": {
+            "rank_ic": [
+                {"date": "2020-01-01", "value": 0.1},
+                {"date": "2020-01-02", "value": -0.05},
+            ],
+            "cumulative_rank_ic": [
+                {"date": "2020-01-01", "value": 0.1},
+                {"date": "2020-01-02", "value": 0.05},
+            ],
+            "equity_curve": [
+                {"date": "2020-01-01", "value": 1.01},
+                {"date": "2020-01-02", "value": 1.02},
+            ],
+            "drawdown": [
+                {"date": "2020-01-01", "value": 0.0},
+                {"date": "2020-01-02", "value": -0.01},
+            ],
+            "grouped_returns": [{"date": "2020-01-01", "1": 0.01, "5": 0.03}],
+        }
+    }
+    chart_functions = [
+        save_rank_ic_chart,
+        save_cumulative_ic_chart,
+        save_equity_curve_chart,
+        save_drawdown_chart,
+        save_grouped_returns_chart,
+    ]
+
+    for index, chart_function in enumerate(chart_functions):
+        path = tmp_path / f"chart_{index}.png"
+        chart_function(series, str(path))
+        assert path.exists()
+        assert path.stat().st_size > 0

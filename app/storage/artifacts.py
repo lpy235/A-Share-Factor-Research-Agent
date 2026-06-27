@@ -2,7 +2,15 @@ import json
 from pathlib import Path
 from typing import Any
 
-from app.reports.charts import save_factor_quality_chart, save_metric_overview_chart
+from app.reports.charts import (
+    save_cumulative_ic_chart,
+    save_drawdown_chart,
+    save_equity_curve_chart,
+    save_factor_quality_chart,
+    save_grouped_returns_chart,
+    save_metric_overview_chart,
+    save_rank_ic_chart,
+)
 
 
 ARTIFACT_ROOT = Path("run_artifacts")
@@ -20,13 +28,16 @@ class ArtifactStore:
         metrics: list[dict[str, Any]],
         factor_specs: list[dict[str, Any]],
         selected_factors: list[str],
+        backtest_series: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
+        backtest_series = backtest_series or {}
         run_dir = self._run_dir(run_id)
         run_dir.mkdir(parents=True, exist_ok=True)
 
         self._write_text(run_dir / "report.md", report_markdown)
         self._write_json(run_dir / "metrics.json", metrics)
         self._write_json(run_dir / "factors.json", factor_specs)
+        self._write_json(run_dir / "backtest_series.json", backtest_series)
         self._write_json(
             run_dir / "bundle.json",
             {
@@ -34,12 +45,19 @@ class ArtifactStore:
                 "selected_factors": selected_factors,
                 "factor_specs": factor_specs,
                 "metrics": metrics,
+                "backtest_series": backtest_series,
                 "report_markdown": report_markdown,
             },
         )
         if metrics:
             save_metric_overview_chart(metrics, str(run_dir / "metric_overview.png"))
             save_factor_quality_chart(metrics, str(run_dir / "factor_quality.png"))
+        if backtest_series:
+            save_rank_ic_chart(backtest_series, str(run_dir / "rank_ic_timeseries.png"))
+            save_cumulative_ic_chart(backtest_series, str(run_dir / "cumulative_ic.png"))
+            save_equity_curve_chart(backtest_series, str(run_dir / "long_short_equity.png"))
+            save_drawdown_chart(backtest_series, str(run_dir / "drawdown_curve.png"))
+            save_grouped_returns_chart(backtest_series, str(run_dir / "grouped_returns.png"))
 
         return self.list_artifacts(run_id)
 
@@ -85,10 +103,16 @@ def _label_for(name: str) -> str:
     labels = {
         "report.md": "研究报告 Markdown",
         "metrics.json": "回测指标 JSON",
+        "backtest_series.json": "回测序列 JSON",
         "factors.json": "因子公式 JSON",
         "bundle.json": "完整研究包 JSON",
         "metric_overview.png": "指标概览图",
         "factor_quality.png": "因子质量图",
+        "rank_ic_timeseries.png": "Rank IC 时间序列",
+        "cumulative_ic.png": "累计 Rank IC",
+        "long_short_equity.png": "多空净值曲线",
+        "drawdown_curve.png": "回撤曲线",
+        "grouped_returns.png": "分组收益图",
     }
     return labels.get(name, name)
 

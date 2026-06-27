@@ -35,6 +35,7 @@ class ResearchState(TypedDict, total=False):
     validation_results: list[dict]
     market_data_summary: dict
     metrics: list[dict]
+    backtest_series: dict
     report_markdown: str
     selected_factors: list[str]
     warnings: list[str]
