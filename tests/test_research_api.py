@@ -26,6 +26,8 @@ def test_research_api_returns_v2_compatible_response_and_node_trace():
         "selected_factors",
         "factor_specs",
         "metrics",
+        "oos_metrics",
+        "factor_correlation",
         "backtest_series",
         "report_markdown",
         "artifacts",
@@ -36,6 +38,9 @@ def test_research_api_returns_v2_compatible_response_and_node_trace():
     assert body["status"] == "completed"
     assert body["selected_factors"] == ["volume_price_momentum"]
     assert body["metrics"][0]["factor_name"] == "volume_price_momentum"
+    assert "mean_rank_ic_oos" in body["metrics"][0]
+    assert body["oos_metrics"]
+    assert {"labels", "values"}.issubset(body["factor_correlation"])
     assert body["backtest_series"]["volume_price_momentum"]["rank_ic"]
     assert body["source_diagnostics"]["accepted_count"] >= 1
     assert body["backtest_assumptions"]["universe"] == "CSI300"
@@ -47,6 +52,8 @@ def test_research_api_returns_v2_compatible_response_and_node_trace():
         "backtest_series.json",
         "metric_overview.png",
         "factor_quality.png",
+        "oos_metrics.json",
+        "factor_correlation.json",
         "rank_ic_timeseries.png",
         "long_short_equity.png",
         "grouped_returns.png",

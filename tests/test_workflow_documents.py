@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from app.agents.graph import run_research_workflow
 
 
@@ -22,4 +20,3 @@ def test_workflow_uses_uploaded_document_content(tmp_path):
 
     assert state["factor_specs"][0]["source_title"] == "factor_note.md"
     assert "volume_price_momentum" in state["selected_factors"]
-

@@ -37,14 +37,19 @@ def test_artifact_store_writes_manifest_and_downloadable_files(tmp_path):
         "bundle.json",
         "cumulative_ic.png",
         "drawdown_curve.png",
+        "factor_correlation.json",
         "factor_quality.png",
         "factors.json",
         "grouped_returns.png",
+        "ic_decay.png",
         "long_short_equity.png",
         "metric_overview.png",
         "metrics.json",
+        "monthly_heatmap.png",
+        "oos_metrics.json",
         "rank_ic_timeseries.png",
         "report.md",
+        "rolling_sharpe.png",
     }
     assert all(item["size_bytes"] > 0 for item in artifacts)
     assert store.get_artifact_path("run_demo", "report.md").read_text(encoding="utf-8") == "# 研究报告"

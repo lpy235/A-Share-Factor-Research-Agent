@@ -6,7 +6,7 @@
 python -m venv .venv
 source .venv/bin/activate
 pip install -U pip
-pip install pandas numpy scipy fastapi pydantic pydantic-settings python-dotenv requests beautifulsoup4 matplotlib pytest uvicorn openai pypdf langgraph python-multipart
+pip install -e ".[dev]"
 pytest -v
 python evals/run_eval.py
 uvicorn app.main:app --port 8000
@@ -26,8 +26,9 @@ Click `Run research` with the default settings.
 2. The run uses public or uploaded source material and retrieves evidence.
 3. Extracted hypotheses become restricted Factor DSL formulas.
 4. The workflow validates formulas before execution.
-5. Backtest metrics and selected factors are shown in the report.
-6. The trace tab shows every LangGraph node and fallback decision.
+5. Backtest metrics separate IS and OOS Rank IC and show IC decay.
+6. The artifact list includes report Markdown, metrics JSON, factor-correlation JSON, and PNG charts.
+7. The trace tab shows every LangGraph node and fallback decision.
 
 ## API-Only Demo
 

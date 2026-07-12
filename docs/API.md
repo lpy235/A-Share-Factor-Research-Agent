@@ -75,6 +75,8 @@ status
 selected_factors
 factor_specs
 metrics
+oos_metrics
+factor_correlation
 backtest_series
 report_markdown
 artifacts
@@ -134,7 +136,9 @@ Supported artifact names include:
 ```text
 report.md
 metrics.json
+oos_metrics.json
 backtest_series.json
+factor_correlation.json
 factors.json
 bundle.json
 metric_overview.png
@@ -144,6 +148,10 @@ cumulative_ic.png
 long_short_equity.png
 drawdown_curve.png
 grouped_returns.png
+rolling_sharpe.png
+monthly_heatmap.png
+ic_decay.png
+factor_correlation.png
 ```
 
 ## Dashboard

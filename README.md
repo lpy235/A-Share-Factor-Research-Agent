@@ -11,7 +11,7 @@ cd "/Users/brain6/Documents/document/A-Share Factor Research Agent"
 python -m venv .venv
 source .venv/bin/activate
 pip install -U pip
-pip install -e .
+pip install -e ".[dev]"
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
@@ -37,9 +37,10 @@ public/uploaded research material
 -> schema-validated or rule-based factor extraction
 -> restricted Factor DSL
 -> fixture or optional AKShare A-share daily data
--> IC / RankIC / grouped returns / long-short metrics
--> factor selection
--> Markdown report + LangGraph trace
+-> IS/OOS Rank IC, ICIR, grouped returns, long-short metrics
+-> IC decay and factor-correlation diagnostics
+-> factor selection with rejection reasons
+-> Markdown report + charts + JSON research bundle + LangGraph trace
 ```
 
 ## Demo
@@ -48,7 +49,7 @@ public/uploaded research material
 python -m venv .venv
 source .venv/bin/activate
 pip install -U pip
-pip install pandas numpy scipy fastapi pydantic pydantic-settings python-dotenv requests beautifulsoup4 matplotlib pytest uvicorn openai pypdf langgraph python-multipart
+pip install -e ".[dev]"
 pytest -v
 python evals/run_eval.py
 uvicorn app.main:app --port 8000
@@ -71,8 +72,15 @@ The dashboard default run is deterministic: no OpenAI key, no live data source, 
 - Rule-based extraction by default, with optional schema-validated LLM extraction.
 - Restricted Factor DSL with whitelisted fields and operators.
 - Deterministic fixture A-share data plus optional AKShare mode and local CSV cache.
-- Factor validation, IC/RankIC, grouped returns, long-short metrics, and factor selection.
+- Factor validation, IS/OOS Rank IC, ICIR, grouped returns, long-short metrics, and factor selection.
+- IC decay, factor-correlation matrix, rolling Sharpe, monthly-return heatmap, and downloadable research bundles.
 - Deterministic eval runner and 60+ pytest coverage.
+
+Optional embedding backends are separated from the default install:
+
+```bash
+pip install -e ".[embedding]"
+```
 
 ## Safety Boundary
 
@@ -107,6 +115,14 @@ make check
 make run
 ```
 
+Manual verification:
+
+```bash
+python -m pytest -q
+python evals/run_eval.py
+python -m compileall app
+```
+
 API smoke test:
 
 ```bash
@@ -120,6 +136,7 @@ curl -s -X POST http://127.0.0.1:8000/research/runs \
 - [Architecture](docs/ARCHITECTURE.md)
 - [API Reference](docs/API.md)
 - [Demo Guide](docs/DEMO.md)
+- [Interview Demo Guide](docs/INTERVIEW_DEMO.md)
 - [Development Guide](docs/DEVELOPMENT.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Demo Report](REPORT.md)
@@ -128,4 +145,4 @@ Detailed historical specs and implementation plans are kept under `docs/superpow
 
 ## Project Summary
 
-> Built an A-share factor research agent with a FastAPI dashboard and LangGraph workflow. The system discovers public A-share research materials or reads uploaded documents, retrieves evidence with hybrid RAG, extracts schema-validated factor hypotheses with deterministic fallback, converts them into a restricted Factor DSL, validates them on cached fixture or optional AKShare daily data, and generates traceable factor research reports with IC/RankIC, grouped returns, long-short backtests, and node-level event traces.
+> Built an A-share factor research agent with a FastAPI dashboard and LangGraph workflow. The system discovers public A-share research materials or reads uploaded documents, retrieves evidence with hybrid RAG, extracts schema-validated factor hypotheses with deterministic fallback, converts them into a restricted Factor DSL, validates them on cached fixture or optional AKShare daily data, and generates traceable factor research reports with IS/OOS Rank IC, IC decay, factor-correlation diagnostics, grouped returns, long-short backtests, downloadable artifacts, and node-level event traces.

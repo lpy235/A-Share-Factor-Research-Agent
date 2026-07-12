@@ -44,3 +44,6 @@ class ResearchState(TypedDict, total=False):
     event_db_path: str
     _market_data: Any
     _factor_values: dict[str, Any]
+    _oos_split_date: str
+    _factor_correlation: dict[str, Any]
+    oos_metrics: list[dict]

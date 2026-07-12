@@ -315,8 +315,10 @@ function renderMetrics(metrics) {
       <thead>
         <tr>
           <th>因子</th>
-          <th>Rank IC</th>
+          <th>IS Rank IC</th>
+          <th>OOS Rank IC</th>
           <th>ICIR</th>
+          <th>IC 衰减</th>
           <th>覆盖率</th>
           <th>缺失率</th>
           <th>最大回撤</th>
@@ -329,12 +331,14 @@ function renderMetrics(metrics) {
             (metric) => `
               <tr>
                 <td>${escapeHtml(metric.factor_name || "")}</td>
-                <td>${escapeHtml(metric.mean_rank_ic || "")}</td>
-                <td>${escapeHtml(metric.icir || "")}</td>
-                <td>${escapeHtml(metric.coverage_ratio || "")}</td>
-                <td>${escapeHtml(metric.missing_ratio || "")}</td>
-                <td>${escapeHtml(metric.max_drawdown || "")}</td>
-                <td>${escapeHtml(metric.sharpe || "")}</td>
+                <td>${escapeHtml(formatMetric(metric.mean_rank_ic))}</td>
+                <td>${escapeHtml(formatMetric(metric.mean_rank_ic_oos))}</td>
+                <td>${escapeHtml(formatMetric(metric.icir))}</td>
+                <td>${escapeHtml(formatMetric(metric.ic_decay_ratio))}</td>
+                <td>${escapeHtml(formatMetric(metric.coverage_ratio))}</td>
+                <td>${escapeHtml(formatMetric(metric.missing_ratio))}</td>
+                <td>${escapeHtml(formatMetric(metric.max_drawdown))}</td>
+                <td>${escapeHtml(formatMetric(metric.sharpe))}</td>
               </tr>
             `,
           )
@@ -352,13 +356,13 @@ function renderMetricSummary(metrics) {
   }
 
   const bestRankIc = bestMetric(metrics, "mean_rank_ic");
+  const bestOosRankIc = bestMetric(metrics, "mean_rank_ic_oos");
   const bestIcir = bestMetric(metrics, "icir");
-  const bestCoverage = bestMetric(metrics, "coverage_ratio");
   const bestSharpe = bestMetric(metrics, "sharpe");
   metricSummary.innerHTML = [
-    renderSummaryItem("最佳 Rank IC", bestRankIc, "mean_rank_ic"),
+    renderSummaryItem("最佳 IS Rank IC", bestRankIc, "mean_rank_ic"),
+    renderSummaryItem("最佳 OOS Rank IC", bestOosRankIc, "mean_rank_ic_oos"),
     renderSummaryItem("最佳 ICIR", bestIcir, "icir"),
-    renderSummaryItem("覆盖率", bestCoverage, "coverage_ratio"),
     renderSummaryItem("Sharpe", bestSharpe, "sharpe"),
   ].join("");
 }
@@ -440,6 +444,8 @@ function renderBacktestAssumptions(assumptions) {
     ["数据源", assumptions.data_provider],
     ["调仓", assumptions.rebalance_frequency],
     ["交易成本", `${assumptions.transaction_cost_bps ?? 0} bps`],
+    ["样本切分", assumptions.oos_split_ratio],
+    ["OOS 起点", assumptions.oos_split_date],
   ].filter((item) => item[1]);
   backtestAssumptions.classList.toggle("empty-state", entries.length === 0);
   if (!entries.length) {

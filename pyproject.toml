@@ -16,8 +16,6 @@ dependencies = [
   "akshare",
   "openai",
   "langgraph",
-  "chromadb",
-  "sentence-transformers",
   "pypdf",
   "markdown",
   "beautifulsoup4",
@@ -27,10 +25,15 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-cov", "ruff"]
+embedding = ["chromadb", "sentence-transformers"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+exclude = ["data_cache*", "run_artifacts*", "uploaded_docs*", "fixture_docs*", "tests*"]
 
 [tool.ruff]
 line-length = 100

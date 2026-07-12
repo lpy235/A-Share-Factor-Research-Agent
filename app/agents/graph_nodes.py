@@ -9,6 +9,7 @@ from app.agents.graph_events import GraphEventTracer, run_traced_node
 from app.agents.nodes import extract_hypotheses_from_chunks, generate_factor_specs
 from app.agents.schemas import FactorHypothesis
 from app.agents.state import ResearchState
+from app.backtest.correlation import compute_factor_correlation_matrix
 from app.backtest.metrics import max_drawdown, sharpe_ratio
 from app.backtest.selector import FactorScore, FactorSelector
 from app.backtest.single_factor import (
@@ -428,7 +429,15 @@ def _load_market_data(state: ResearchState, tracer: GraphEventTracer) -> Researc
     if data.empty:
         raise ValueError(f"No market data returned by {diagnostics.get('provider')}")
 
+    dates = pd.DatetimeIndex(pd.to_datetime(data.index.get_level_values("date"))).unique().sort_values()
+    if len(dates) > 1:
+        oos_split_index = min(max(int(len(dates) * 0.7), 1), len(dates) - 1)
+        oos_split_date = str(pd.Timestamp(dates[oos_split_index]).date())
+    else:
+        oos_split_date = str(pd.Timestamp(dates[0]).date()) if len(dates) == 1 else ""
+
     state["_market_data"] = data
+    state["_oos_split_date"] = oos_split_date
     state["market_data_diagnostics"] = diagnostics
     state["market_data_summary"] = {
         "provider": diagnostics.get("provider"),
@@ -436,6 +445,7 @@ def _load_market_data(state: ResearchState, tracer: GraphEventTracer) -> Researc
         "row_count": int(len(data)),
         "start_date": str(data.index.get_level_values("date").min().date()),
         "end_date": str(data.index.get_level_values("date").max().date()),
+        "oos_split_date": oos_split_date,
     }
     state["backtest_assumptions"] = _build_backtest_assumptions(state, diagnostics)
     return state
@@ -534,67 +544,212 @@ def _execute_factors(state: ResearchState, tracer: GraphEventTracer) -> Research
 def _run_backtest(state: ResearchState, tracer: GraphEventTracer) -> ResearchState:
     data = state.get("_market_data")
     factor_values = state.get("_factor_values", {})
+    oos_split_date = state.get("_oos_split_date", "")
     if not isinstance(data, pd.DataFrame) or data.empty:
         raise ValueError("Market data is missing before backtest")
     if not factor_values:
         raise ValueError("Factor values are missing before backtest")
 
+    # Split IS / OOS by date
+    data_is, data_oos = _split_is_oos(data, oos_split_date)
+
     metrics = []
+    oos_metrics = []
     backtest_series = {}
-    forward_returns = compute_forward_returns(data["close"], periods=1)
+
     for factor_name, factor in factor_values.items():
-        rank_ic = compute_rank_ic(factor, forward_returns)
-        grouped = grouped_forward_returns(factor, forward_returns, groups=5)
-        if {1, 5}.issubset(grouped.columns):
-            long_short = grouped[5] - grouped[1]
-        else:
-            long_short = grouped.mean(axis=1) * 0
-        equity_curve = (1 + long_short.fillna(0)).cumprod()
-        drawdown = equity_curve / equity_curve.cummax() - 1
-        rank_ic_std = rank_ic.std()
-        metrics.append(
-            {
-                "factor_name": factor_name,
-                "mean_rank_ic": round(_safe_float(rank_ic.mean()), 6),
-                "icir": round(_safe_float(rank_ic.mean() / rank_ic_std) if rank_ic_std else 0.0, 6),
-                "coverage_ratio": round(float(factor.notna().mean()), 6),
-                "missing_ratio": round(float(factor.isna().mean()), 6),
-                "max_drawdown": round(max_drawdown(long_short), 6),
-                "sharpe": round(sharpe_ratio(long_short), 6),
-            }
+        # ------- In-sample -------
+        factor_is = _clip_series_to_data(factor, data_is) if data_is is not None else factor
+        forward_returns_is = compute_forward_returns(data_is["close"], periods=1) if data_is is not None else None
+        is_result = (
+            _backtest_single_factor(factor_name, factor_is, forward_returns_is)
+            if forward_returns_is is not None
+            else {}
         )
+        metric = _build_metric_dict(factor_name, is_result, segment="IS")
+        metrics.append(metric)
+
+        # ------- Out-of-sample -------
+        factor_oos = _clip_series_to_data(factor, data_oos) if data_oos is not None else factor
+        forward_returns_oos = compute_forward_returns(data_oos["close"], periods=1) if data_oos is not None else None
+        oos_result = (
+            _backtest_single_factor(factor_name, factor_oos, forward_returns_oos)
+            if forward_returns_oos is not None
+            else {}
+        )
+        oos_metrics.append(_build_metric_dict(factor_name, oos_result, segment="OOS"))
+
+        # IC decay ratio: |mean_IC_IS| / |mean_IC_OOS|，>1 means IS stronger (potential overfitting)
+        ic_is = is_result.get("mean_rank_ic", 0.0)
+        ic_oos = oos_result.get("mean_rank_ic", 0.0)
+        ic_decay = abs(ic_is) / max(abs(ic_oos), 1e-8) if ic_oos else None
+
+        # Merge IS+OOS series for full-period charts
+        merged_rank_ic = _merge_series(is_result.get("rank_ic"), oos_result.get("rank_ic"))
+        merged_long_short = _merge_series(
+            is_result.get("long_short_returns"), oos_result.get("long_short_returns")
+        )
+        equity_full = (1 + merged_long_short.fillna(0)).cumprod()
+        drawdown_full = equity_full / equity_full.cummax() - 1
+
         backtest_series[factor_name] = {
-            "rank_ic": _series_to_points(rank_ic),
-            "cumulative_rank_ic": _series_to_points(rank_ic.fillna(0).cumsum()),
-            "long_short_returns": _series_to_points(long_short),
-            "equity_curve": _series_to_points(equity_curve),
-            "drawdown": _series_to_points(drawdown),
-            "grouped_returns": _frame_to_records(grouped),
+            "rank_ic": _series_to_points(merged_rank_ic),
+            "cumulative_rank_ic": _series_to_points(merged_rank_ic.fillna(0).cumsum()),
+            "long_short_returns": _series_to_points(merged_long_short),
+            "equity_curve": _series_to_points(equity_full),
+            "drawdown": _series_to_points(drawdown_full),
+            "grouped_returns": _frame_to_records(is_result.get("grouped", pd.DataFrame())),
+            "ic_decay_ratio": ic_decay,
+            "oos_split_date": oos_split_date,
+            "rank_ic_is": _series_to_points(
+                is_result.get("rank_ic") if is_result.get("rank_ic") is not None else pd.Series(dtype=float)
+            ),
+            "rank_ic_oos": _series_to_points(
+                oos_result.get("rank_ic") if oos_result.get("rank_ic") is not None else pd.Series(dtype=float)
+            ),
         }
+
+        metric["mean_rank_ic_oos"] = round(_safe_float(ic_oos), 6)
+        metric["ic_decay_ratio"] = round(ic_decay, 4) if ic_decay is not None else None
+
     state["metrics"] = metrics
+    state["oos_metrics"] = oos_metrics
     state["backtest_series"] = backtest_series
+
+    # Compute factor correlation matrix
+    if len(factor_values) >= 2:
+        corr_matrix = compute_factor_correlation_matrix(factor_values)
+        state["_factor_correlation"] = {
+            "labels": list(corr_matrix.index) if not corr_matrix.empty else [],
+            "values": corr_matrix.values.tolist() if not corr_matrix.empty else [],
+        }
+    else:
+        state["_factor_correlation"] = {"labels": [], "values": []}
+
     return state
 
 
+def _split_is_oos(
+    data: pd.DataFrame, split_date: str
+) -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
+    """Split market data into in-sample (before split_date) and out-of-sample (on/after)."""
+    if not split_date:
+        return data, None
+    dates = pd.to_datetime(data.index.get_level_values("date"))
+    split_ts = pd.Timestamp(split_date)
+    mask_is = dates < split_ts
+    mask_oos = dates >= split_ts
+    data_is: pd.DataFrame | None = data.loc[mask_is].copy() if mask_is.any() else None
+    data_oos: pd.DataFrame | None = data.loc[mask_oos].copy() if mask_oos.any() else None
+    return data_is, data_oos
+
+
+def _clip_series_to_data(series: pd.Series, data: pd.DataFrame) -> pd.Series:
+    """Clip a factor value series to only include dates present in the data slice."""
+    if data is None or data.empty:
+        return series
+    data_dates = data.index.get_level_values("date").unique()
+    series_dates = series.index.get_level_values("date")
+    keep = series_dates.isin(data_dates)
+    return series.loc[keep].copy()
+
+
+def _merge_series(
+    s1: pd.Series | None, s2: pd.Series | None
+) -> pd.Series:
+    """Concatenate two Series, removing duplicates by index."""
+    parts = []
+    if s1 is not None and not s1.empty:
+        parts.append(s1)
+    if s2 is not None and not s2.empty:
+        parts.append(s2)
+    if not parts:
+        return pd.Series(dtype=float)
+    merged = pd.concat(parts)
+    return merged[~merged.index.duplicated(keep="first")].sort_index()
+
+
+def _backtest_single_factor(
+    factor_name: str,
+    factor: pd.Series,
+    forward_returns: pd.Series,
+) -> dict[str, Any]:
+    """Compute all backtest metrics for a single factor on a data segment."""
+    result: dict[str, Any] = {"factor_name": factor_name}
+    if factor.empty:
+        return result
+    if forward_returns.empty:
+        return result
+    rank_ic = compute_rank_ic(factor, forward_returns)
+    grouped = grouped_forward_returns(factor, forward_returns, groups=5)
+    if {1, 5}.issubset(grouped.columns):
+        long_short = grouped[5] - grouped[1]
+    else:
+        long_short = grouped.mean(axis=1) * 0
+    rank_ic_std = rank_ic.std()
+    result.update({
+        "mean_rank_ic": rank_ic.mean(),
+        "icir": (rank_ic.mean() / rank_ic_std) if rank_ic_std else 0.0,
+        "coverage_ratio": float(factor.notna().mean()),
+        "missing_ratio": float(factor.isna().mean()),
+        "max_drawdown": max_drawdown(long_short),
+        "sharpe": sharpe_ratio(long_short),
+        "rank_ic": rank_ic,
+        "long_short_returns": long_short,
+        "grouped": grouped,
+    })
+    return result
+
+
+def _build_metric_dict(
+    factor_name: str, result: dict[str, Any], segment: str
+) -> dict[str, Any]:
+    """Convert a backtest result dict into the frontend metric format."""
+    suffix = f"_{segment.lower()}" if segment != "IS" else ""
+    metric = {
+        "factor_name": factor_name,
+        f"mean_rank_ic{suffix}": round(_safe_float(result.get("mean_rank_ic", 0.0)), 6),
+        f"icir{suffix}": round(_safe_float(result.get("icir", 0.0)), 6),
+        f"coverage_ratio{suffix}": round(_safe_float(result.get("coverage_ratio", 0.0)), 6),
+        f"missing_ratio{suffix}": round(_safe_float(result.get("missing_ratio", 0.0)), 6),
+        f"max_drawdown{suffix}": round(_safe_float(result.get("max_drawdown", 0.0)), 6),
+        f"sharpe{suffix}": round(_safe_float(result.get("sharpe", 0.0)), 6),
+    }
+    if segment != "IS":
+        metric[f"factor_name{suffix}"] = factor_name
+    return metric
+
+
 def _select_factors(state: ResearchState, tracer: GraphEventTracer) -> ResearchState:
+    warnings = list(state.get("warnings", []))
     selected_input = [
         FactorScore(
-            factor_name=score["factor_name"],
-            mean_rank_ic=score["mean_rank_ic"],
-            icir=score["icir"],
-            coverage_ratio=score["coverage_ratio"],
-            missing_ratio=score["missing_ratio"],
-            max_drawdown=score["max_drawdown"],
+            factor_name=score.get("factor_name", ""),
+            mean_rank_ic=score.get("mean_rank_ic", 0.0),
+            icir=score.get("icir", 0.0),
+            coverage_ratio=score.get("coverage_ratio", 0.0),
+            missing_ratio=score.get("missing_ratio", 0.0),
+            max_drawdown=score.get("max_drawdown", 0.0),
+            mean_rank_ic_oos=score.get("mean_rank_ic_oos"),
+            ic_decay_ratio=score.get("ic_decay_ratio"),
         )
         for score in state.get("metrics", [])
     ]
-    selected = FactorSelector(
-        min_abs_rank_ic=0.0,
-        min_abs_icir=0.0,
-        min_coverage=0.7,
-        max_missing=0.3,
-    ).select(selected_input)
+    selector = FactorSelector(
+        min_abs_rank_ic=0.02,
+        min_abs_icir=0.3,
+        min_coverage=0.5,
+        max_missing=0.5,
+        max_ic_decay_ratio=2.0,
+    )
+    selected = selector.select(selected_input)
     state["selected_factors"] = [item.factor_name for item in selected]
+
+    # Log rejection reasons
+    rejection_info = selector.rejection_reasons(selected_input)
+    for factor_name, reasons in rejection_info.items():
+        warnings.append(f"Factor [{factor_name}] rejected: {'; '.join(reasons)}")
+    state["warnings"] = warnings
     return state
 
 
@@ -620,9 +775,12 @@ def _generate_report(state: ResearchState, tracer: GraphEventTracer) -> Research
         ],
         factors=state.get("factor_specs", []),
         metrics=state.get("metrics", []),
+        oos_metrics=state.get("oos_metrics", []),
+        factor_correlation=state.get("_factor_correlation", {"labels": [], "values": []}),
         source_diagnostics=state.get("source_diagnostics", {}),
         backtest_assumptions=state.get("backtest_assumptions", {}),
         audit_trail=state.get("audit_trail", []),
+        warnings=state.get("warnings", []),
         limitations=[
             data_limitation,
             "正式研究需要使用合法、稳定、可复现的 A 股数据源。",
@@ -637,6 +795,7 @@ def _build_backtest_assumptions(
     diagnostics: dict[str, Any],
 ) -> dict[str, Any]:
     provider = diagnostics.get("provider", state.get("data_provider", "fixture"))
+    oos_date = state.get("_oos_split_date", "")
     return {
         "universe": state.get("universe", "CSI300"),
         "start_date": state.get("start_date", "2020-01-01"),
@@ -648,10 +807,13 @@ def _build_backtest_assumptions(
         "transaction_cost_bps": 0,
         "adjustment": "fixture 模式使用确定性示例日线；AKShare 模式依赖公开接口返回的数据。",
         "universe_note": "当前股票池最多取前 20 个标的用于可复现实验演示。",
+        "oos_split_date": oos_date,
+        "oos_split_ratio": "前 70% 样本内 (IS)，后 30% 样本外 (OOS)",
         "bias_notes": [
             "fixture 数据不代表真实 A 股全市场表现。",
             "真实研究需要处理停牌、涨跌停、复权、ST、退市和生存者偏差。",
             "当前回测不执行真实交易，也不构成投资建议。",
+            f"样本内/外按日期分割：IS 为 {oos_date} 之前，OOS 为 {oos_date} 起（若数据区间足够）",
         ],
     }
 
