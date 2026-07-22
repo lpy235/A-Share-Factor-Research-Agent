@@ -1,6 +1,6 @@
 # Factor DSL Safety and Correctness Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Prevent unsafe or forward-looking Factor DSL formulas from reaching execution, derive and validate formula metadata, and replace direct `eval` with a controlled AST interpreter without changing valid demo-factor results.
 
@@ -16,7 +16,7 @@
 - Modify: `tests/test_factor_dsl.py`
 - Test: `tests/test_factor_dsl.py`
 
-- [ ] **Step 1: Extend the test helper to vary metadata**
+- [x] **Step 1: Extend the test helper to vary metadata**
 
 Change `_spec` so tests can provide `required_fields` and `lookback` while keeping the current defaults:
 
@@ -44,7 +44,7 @@ def _spec(
     )
 ~~~
 
-- [ ] **Step 2: Add failing tests for window semantics and metadata**
+- [x] **Step 2: Add failing tests for window semantics and metadata**
 
 Append these tests to `tests/test_factor_dsl.py`:
 
@@ -130,7 +130,7 @@ def test_call_depth_limit_is_rejected():
     assert "call_depth_exceeded" in result.errors
 ~~~
 
-- [ ] **Step 3: Run the focused tests and confirm they fail before implementation**
+- [x] **Step 3: Run the focused tests and confirm they fail before implementation**
 
 Run:
 
@@ -140,7 +140,7 @@ pytest tests/test_factor_dsl.py -q
 
 Expected: the original tests pass, and the new strict-validation tests fail because the validator currently accepts invalid windows, does not derive metadata, and does not enforce signatures or complexity limits.
 
-- [ ] **Step 4: Commit the failing tests**
+- [x] **Step 4: Commit the failing tests**
 
 ~~~bash
 git add tests/test_factor_dsl.py
@@ -153,7 +153,7 @@ git commit -m "test: specify strict factor DSL validation"
 - Modify: `app/factor/validator.py`
 - Test: `tests/test_factor_dsl.py`
 
-- [ ] **Step 1: Add validator limits and explicit operator signatures**
+- [x] **Step 1: Add validator limits and explicit operator signatures**
 
 Add these module-level declarations to `app/factor/validator.py`:
 
@@ -186,7 +186,7 @@ OPERATOR_ARITIES = {
 }
 ~~~
 
-- [ ] **Step 2: Add a derived metadata value object**
+- [x] **Step 2: Add a derived metadata value object**
 
 Define a frozen dataclass in `app/factor/validator.py`:
 
@@ -199,7 +199,7 @@ class FormulaMetadata:
 
 Add a private recursive collector that walks the validated AST, records `allowed_fields`, records the second argument of each `WINDOWED_OPERATOR`, and returns `FormulaMetadata`. Pass a call-depth counter through recursive call nodes and emit `call_depth_exceeded` above `MAX_CALL_DEPTH`. It must also emit stable errors for missing or invalid windows, non-name call targets, unknown names, and unknown operators. A boolean constant must not count as an integer window.
 
-- [ ] **Step 3: Enforce source, AST, name, signature, window, and metadata rules**
+- [x] **Step 3: Enforce source, AST, name, signature, window, and metadata rules**
 
 Update `FactorDslValidator.validate` to:
 
@@ -227,7 +227,7 @@ if spec.lookback < metadata.max_window:
 
 Keep the existing `unsafe_token`, `unknown_name`, `unknown_operator`, `unsafe_call`, and `unsupported_ast:*` error families so existing diagnostics remain recognizable.
 
-- [ ] **Step 4: Run the focused validator tests**
+- [x] **Step 4: Run the focused validator tests**
 
 Run:
 
@@ -237,7 +237,7 @@ pytest tests/test_factor_dsl.py -q
 
 Expected: all validator tests pass. If a valid generated formula fails, update the generator metadata rather than weakening validation.
 
-- [ ] **Step 5: Commit the validator implementation**
+- [x] **Step 5: Commit the validator implementation**
 
 ~~~bash
 git add app/factor/validator.py tests/test_factor_dsl.py
@@ -251,7 +251,7 @@ git commit -m "feat: enforce factor DSL windows and metadata"
 - Modify: `app/factor/executor.py`
 - Test: `tests/test_factor_dsl.py`
 
-- [ ] **Step 1: Add failing execution regression tests**
+- [x] **Step 1: Add failing execution regression tests**
 
 Append these tests to `tests/test_factor_dsl.py`:
 
@@ -282,7 +282,7 @@ def test_executor_rejects_non_series_expression():
 
 Add a small `_market_data()` fixture helper in the test module that returns a valid `(symbol, date)` DataFrame with `close` and `volume` columns. Keep the existing numerical fixture unchanged.
 
-- [ ] **Step 2: Run the focused execution tests and confirm the new interpreter tests fail**
+- [x] **Step 2: Run the focused execution tests and confirm the new interpreter tests fail**
 
 Run:
 
@@ -292,7 +292,7 @@ pytest tests/test_factor_dsl.py -q
 
 Expected: the existing executor test passes, while the new tests fail until the interpreter is added and `FactorExecutor` is switched away from `eval`.
 
-- [ ] **Step 3: Implement the interpreter**
+- [x] **Step 3: Implement the interpreter**
 
 Create `app/factor/interpreter.py` with this public interface:
 
@@ -360,7 +360,7 @@ Call(Name) → resolve function and evaluate positional args
 
 Raise `ValueError("unsupported_ast:<NodeName>")` for every other node, reject keyword arguments, and never call `eval`, `exec`, `getattr`, or dynamic imports. The validator remains responsible for detailed formula errors; the interpreter remains a small execution-only component.
 
-- [ ] **Step 4: Switch FactorExecutor to the interpreter**
+- [x] **Step 4: Switch FactorExecutor to the interpreter**
 
 In `app/factor/executor.py`:
 
@@ -373,7 +373,7 @@ In `app/factor/executor.py`:
 
 Do not alter operator implementations or the valid formula strings produced by `FactorDslGenerationService`.
 
-- [ ] **Step 5: Run DSL and operator tests**
+- [x] **Step 5: Run DSL and operator tests**
 
 Run:
 
@@ -383,7 +383,7 @@ pytest tests/test_factor_dsl.py tests/test_factor_operators.py -q
 
 Expected: all tests pass, including numerical equality with the existing operator implementation.
 
-- [ ] **Step 6: Commit the interpreter change**
+- [x] **Step 6: Commit the interpreter change**
 
 ~~~bash
 git add app/factor/interpreter.py app/factor/executor.py tests/test_factor_dsl.py
@@ -398,7 +398,7 @@ git commit -m "feat: execute factor DSL through controlled interpreter"
 - Modify: `tests/test_agent_graph.py` only if fallback coverage is missing
 - Test: `tests/test_factor_dsl.py`, `tests/test_agent_nodes.py`, `tests/test_agent_graph.py`
 
-- [ ] **Step 1: Add a workflow test for invalid-spec fallback**
+- [x] **Step 1: Add a workflow test for invalid-spec fallback**
 
 Add these imports and the direct validation-node test to tests/test_agent_nodes.py:
 
@@ -439,7 +439,7 @@ def test_validate_dsl_node_replaces_forward_looking_formula_with_safe_fallback()
 
 Use the existing `run_traced_node` contract and keep the fallback formula generated by `_demo_hypothesis()`.
 
-- [ ] **Step 2: Run all factor and workflow tests**
+- [x] **Step 2: Run all factor and workflow tests**
 
 Run:
 
@@ -449,7 +449,7 @@ pytest tests/test_factor_dsl.py tests/test_factor_operators.py tests/test_agent_
 
 Expected: all tests pass and the deterministic demo still selects `volume_price_momentum`.
 
-- [ ] **Step 3: Run the complete verification suite**
+- [x] **Step 3: Run the complete verification suite**
 
 Run:
 
@@ -462,7 +462,7 @@ git diff --check
 
 Expected: pytest and eval exit successfully, compileall reports no syntax errors, and `git diff --check` is clean.
 
-- [ ] **Step 4: Inspect the final diff and commit the compatibility changes**
+- [x] **Step 4: Inspect the final diff and commit the compatibility changes**
 
 Run:
 
@@ -485,7 +485,7 @@ git commit -m "test: verify strict DSL workflow compatibility"
 - Modify: `README.md`
 - Modify: `docs/API.md` only if API validation errors are exposed there
 
-- [ ] **Step 1: Document the accepted DSL contract**
+- [x] **Step 1: Document the accepted DSL contract**
 
 Add a concise section explaining:
 
@@ -498,11 +498,11 @@ formula execution uses a controlled AST interpreter;
 invalid specs are excluded and reported in validation_results.
 ~~~
 
-- [ ] **Step 2: Document the remaining limitation**
+- [x] **Step 2: Document the remaining limitation**
 
 State explicitly that this is an in-process controlled interpreter, not a separate-process resource sandbox. Keep the existing safety boundary and research-prototype disclaimers.
 
-- [ ] **Step 3: Run documentation and final checks**
+- [x] **Step 3: Run documentation and final checks**
 
 Run:
 
@@ -513,7 +513,7 @@ pytest -q
 
 Expected: both commands succeed.
 
-- [ ] **Step 4: Commit documentation**
+- [x] **Step 4: Commit documentation**
 
 ~~~bash
 git add README.md docs/ARCHITECTURE.md docs/API.md
@@ -522,10 +522,10 @@ git commit -m "docs: document strict factor DSL contract"
 
 ## Self-Review Checklist
 
-- [ ] Every task names exact files and test commands.
-- [ ] The plan preserves valid current formulas and deterministic fallback behavior.
-- [ ] Negative and zero windows are explicitly rejected before execution.
-- [ ] Metadata derivation and enforcement are covered by tests.
-- [ ] Direct `eval` removal is covered by execution regression tests.
-- [ ] Full pytest, eval, compileall, and diff checks are included.
-- [ ] Later backtest and factor-library work is explicitly out of scope.
+- [x] Every task names exact files and test commands.
+- [x] The plan preserves valid current formulas and deterministic fallback behavior.
+- [x] Negative and zero windows are explicitly rejected before execution.
+- [x] Metadata derivation and enforcement are covered by tests.
+- [x] Direct `eval` removal is covered by execution regression tests.
+- [x] Full pytest, eval, compileall, and diff checks are included.
+- [x] Later backtest and factor-library work is explicitly out of scope.

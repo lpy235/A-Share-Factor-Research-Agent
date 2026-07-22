@@ -1,9 +1,11 @@
+import ast
 from dataclasses import dataclass
 
 import pandas as pd
 
 from app.factor import operators
 from app.factor.dsl import FactorSpec
+from app.factor.interpreter import FormulaInterpreter
 from app.factor.validator import FactorDslValidator
 
 
@@ -22,7 +24,7 @@ class FactorExecutor:
         if not validation.valid:
             raise ValueError(f"Invalid factor formula: {validation.errors}")
 
-        env = {
+        functions = {
             "returns": operators.returns,
             "delay": operators.delay,
             "ts_mean": operators.ts_mean,
@@ -34,13 +36,17 @@ class FactorExecutor:
             "winsorize": operators.winsorize,
             "neutralize": operators.neutralize,
         }
-        for field in FactorDslValidator.allowed_fields:
-            if field in data.columns:
-                env[field] = data[field]
+        fields = {
+            field: data[field]
+            for field in FactorDslValidator.allowed_fields
+            if field in data.columns
+        }
 
-        values = eval(spec.formula, {"__builtins__": {}}, env)
+        tree = ast.parse(spec.formula, mode="eval")
+        values = FormulaInterpreter(fields, functions).evaluate(tree)
         if not isinstance(values, pd.Series):
             raise TypeError("Factor formula must return a pandas Series")
+        if not values.index.equals(data.index):
+            raise ValueError("Factor formula result index must match market data index")
         values.name = spec.factor_name
         return FactorExecutionResult(spec.factor_name, values)
-

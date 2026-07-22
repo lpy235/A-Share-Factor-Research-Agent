@@ -46,7 +46,7 @@ app/api        FastAPI routers for UI, document upload, research runs, trace eve
 app/agents     LangGraph workflow, node implementations, extraction schemas/prompts
 app/backtest   IC, grouped return, selection, and risk metrics
 app/data       Fixture data, optional AKShare adapter, local daily-bar cache
-app/factor     Restricted Factor DSL, validator, operators, executor
+app/factor     Restricted Factor DSL, strict validator, operators, controlled AST interpreter
 app/llm        OpenAI-compatible client wrapper
 app/rag        Chunking, keyword retrieval, hashing embeddings, vector/hybrid retrieval
 app/reports    Markdown report and chart helpers
@@ -73,3 +73,23 @@ allow_live_fetch = false
 
 The system does not execute arbitrary model-generated Python. Factor formulas are validated against a restricted DSL with whitelisted fields and operators.
 
+## Factor DSL Contract
+
+`FactorDslValidator` is the mandatory boundary between generated `FactorSpec` objects and factor execution. It parses each formula as an expression AST and enforces all of the following before a factor can run:
+
+```text
+field names          registered market-data fields only
+operator calls       registered operators with explicit signatures only
+window arguments     integer constants in 1..2520 (MAX_WINDOW)
+required_fields      exactly equal to fields derived from the formula AST
+lookback             greater than or equal to the largest derived window
+formula complexity   bounded source length, AST node count, and call depth
+```
+
+Negative, zero, non-integer, and oversized windows are rejected. This prevents formulas such as `delay(close, -1)` from requesting forward data through a time-series operator. Validation results use stable error codes so `ValidateDSLNode` can exclude invalid candidates, record actionable warnings, and expose the decision in the workflow trace. When every candidate is invalid, the deterministic fallback factor is accepted only if it passes this same contract.
+
+## Controlled Factor Execution
+
+`FactorExecutor` does not evaluate formula strings as general Python. After validation, it passes the parsed expression tree to an in-process controlled AST interpreter. The interpreter resolves field names from the market-data environment and operator names from the registry, and implements only approved numeric constants, arithmetic nodes, unary negation, and calls. Attributes, subscripts, comprehensions, lambdas, imports, builtins, and dynamic lookup are outside the executable surface. The returned value must be a Pandas `Series` whose index matches the input market-data index.
+
+The interpreter is an application-level semantic boundary, not a resource sandbox. It runs in the API/worker process and does not by itself provide CPU, memory, wall-clock, or operating-system isolation. A production deployment that accepts untrusted formulas should add process isolation, execution timeouts, memory limits, and workload quotas around this layer.

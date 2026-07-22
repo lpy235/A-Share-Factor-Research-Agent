@@ -70,7 +70,7 @@ The dashboard default run is deterministic: no OpenAI key, no live data source, 
 - Markdown/txt/PDF upload plus deterministic public-source discovery.
 - Keyword, vector, and hybrid retrieval over research chunks.
 - Rule-based extraction by default, with optional schema-validated LLM extraction.
-- Restricted Factor DSL with whitelisted fields and operators.
+- Restricted Factor DSL with whitelisted fields and operators, strict window semantics, and controlled AST interpretation.
 - Deterministic fixture A-share data plus optional AKShare mode and local CSV cache.
 - Factor validation, IS/OOS Rank IC, ICIR, grouped returns, long-short metrics, and factor selection.
 - IC decay, factor-correlation matrix, rolling Sharpe, monthly-return heatmap, and downloadable research bundles.
@@ -87,6 +87,17 @@ pip install -e ".[embedding]"
 This is a research workflow demo. It does not provide investment advice, stock recommendations, return promises, order execution, or auto-trading.
 
 Model output cannot execute arbitrary Python. It must pass schema validation and produce formulas in a restricted Factor DSL.
+
+The Factor DSL contract is enforced before execution:
+
+- formulas may reference only registered market-data fields and operators;
+- rolling and delay windows must be integer constants from `1` through `2520` (`MAX_WINDOW`);
+- `required_fields` must exactly match the fields referenced by the formula;
+- `lookback` must cover the formula's largest rolling or delay window;
+- source length, AST size, call depth, operator signatures, and numeric arguments are bounded;
+- invalid formulas are excluded, and workflow fallback formulas must pass the same validator.
+
+Validated formulas run through an in-process controlled AST interpreter. The interpreter supports only the approved names, numeric constants, arithmetic operations, and operator calls; it does not expose Python builtins, attributes, subscripts, or dynamic function lookup. This is a semantic execution boundary, not a process-isolation or resource sandbox. Deployments that accept formulas from untrusted users still need process isolation, timeouts, memory limits, and operating-system-level controls.
 
 ## Repository Map
 

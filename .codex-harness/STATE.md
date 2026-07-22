@@ -3,7 +3,7 @@
 ## Current Phase
 
 ```text
-Repository cleanup complete
+Stage 1 P0 Factor DSL safety and correctness complete
 ```
 
 ## Workspace
@@ -138,14 +138,21 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 - [x] `python -m compileall app` passed after wording cleanup.
 - [x] Career-framing keyword scan passed after wording cleanup.
 - [x] Wording cleanup committed and pushed.
+- [x] Factor DSL safety and correctness design and implementation plan written.
+- [x] Strict Factor DSL window, signature, complexity, and metadata validation implemented.
+- [x] Direct Factor DSL eval replaced with a controlled AST interpreter.
+- [x] Negative-window fallback, interpreter regression, and validator tests added.
+- [x] README and architecture docs updated with the strict DSL contract.
+- [x] Full pytest, eval, compileall, Ruff, diff-check, and API smoke verification passed.
 
 ## In Progress
 
-- [ ] Plan V9 richer research charts, downloadable artifacts, or real search API integration.
+- [ ] Stage 2 realistic backtest assumptions and execution costs.
 
 ## Next Queue
 
-- [ ] Plan V9 richer research charts, downloadable artifacts, or real search API integration.
+- [ ] Add transaction costs, slippage, turnover, historical universes, and stronger IS/OOS validation.
+- [ ] Build a versioned factor registry after the backtest layer is stable.
 
 ## Known Risks
 
