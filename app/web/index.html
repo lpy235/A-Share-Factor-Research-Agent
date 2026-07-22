@@ -180,6 +180,49 @@
             </form>
           </section>
 
+          <section class="panel-section compact-card llm-settings-card">
+            <div class="section-heading compact">
+              <div>
+                <p class="eyebrow">模型与 API</p>
+                <h2>LLM 配置</h2>
+              </div>
+            </div>
+            <div class="llm-form">
+              <label class="field">
+                <span>服务商</span>
+                <select id="llm-provider">
+                  <option value="openai" selected>OpenAI / 兼容接口</option>
+                  <option value="deepseek">DeepSeek 兼容接口</option>
+                  <option value="qwen">通义千问兼容接口</option>
+                  <option value="custom">自定义 OpenAI 兼容</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>模型名</span>
+                <input id="llm-model" type="text" value="gpt-5.2" placeholder="例如 gpt-5.2 / deepseek-chat" />
+              </label>
+              <label class="field full-span">
+                <span>Base URL</span>
+                <input id="llm-base-url" type="url" placeholder="留空使用 OpenAI 默认地址，兼容接口填写 https://.../v1" />
+              </label>
+              <label class="field full-span">
+                <span>API Key</span>
+                <input id="llm-api-key" type="password" autocomplete="off" placeholder="仅保存在当前浏览器，不写入运行历史" />
+              </label>
+              <label class="switchline full-span">
+                <span>运行时启用 LLM 抽取</span>
+                <input id="llm-enable-from-settings" type="checkbox" />
+              </label>
+              <div class="llm-actions full-span">
+                <button id="save-llm-config" class="secondary-action" type="button">保存到本地浏览器</button>
+                <button id="clear-llm-config" class="ghost-action" type="button">清空配置</button>
+              </div>
+              <p id="llm-config-status" class="form-note full-span">
+                未保存模型配置。未启用时系统使用规则抽取。
+              </p>
+            </div>
+          </section>
+
           <section class="panel-section compact-card">
             <p class="eyebrow">当前配置</p>
             <div id="run-config" class="config-list">

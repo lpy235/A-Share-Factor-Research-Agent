@@ -154,6 +154,8 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 - [x] `pytest -v` passed with 139 tests after realistic backtest implementation.
 - [x] `python evals/run_eval.py` passed with 5/5 correct and accuracy 1.0.
 - [x] Compileall, Ruff, JavaScript syntax, diff-check, and API smoke verification passed.
+- [x] Dashboard LLM provider/model/Base URL/API Key configuration restored with masked run-history persistence.
+- [x] LLM configuration regression verified with 142 tests, 5/5 eval, browser interaction, and zero console errors.
 
 ## In Progress
 

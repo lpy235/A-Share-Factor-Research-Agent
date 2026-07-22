@@ -36,6 +36,7 @@ class ResearchRunRequest(BaseModel):
     extraction_mode: str = "hybrid"
     enable_llm_extraction: bool = False
     llm_retry_count: int = 1
+    llm_config: dict = Field(default_factory=dict)
     data_provider: str = "fixture"
     cache_enabled: bool = True
     fallback_to_fixture: bool = True
@@ -60,6 +61,8 @@ def create_research_run(request: ResearchRunRequest):
             raise HTTPException(status_code=422, detail="Historical universe not found") from exc
     run_id = f"run_{uuid4().hex[:12]}"
     request_config = request.model_dump()
+    llm_config_summary = _summarize_llm_config(request.llm_config)
+    request_config["llm_config"] = llm_config_summary
     document_paths = []
     if request.document_ids:
         from app.storage.documents import DocumentStore
@@ -82,6 +85,7 @@ def create_research_run(request: ResearchRunRequest):
             "extraction_mode": request.extraction_mode,
             "enable_llm_extraction": request.enable_llm_extraction,
             "llm_retry_count": request.llm_retry_count,
+            "llm_config": llm_config_summary,
             "data_provider": request.data_provider,
             "cache_enabled": request.cache_enabled,
             "fallback_to_fixture": request.fallback_to_fixture,
@@ -111,6 +115,8 @@ def create_research_run(request: ResearchRunRequest):
             "extraction_mode": request.extraction_mode,
             "enable_llm_extraction": request.enable_llm_extraction,
             "llm_retry_count": request.llm_retry_count,
+            "llm_config": request.llm_config,
+            "llm_config_summary": llm_config_summary,
             "data_provider": request.data_provider,
             "cache_enabled": request.cache_enabled,
             "fallback_to_fixture": request.fallback_to_fixture,
@@ -185,3 +191,22 @@ def create_research_run(request: ResearchRunRequest):
         response=response,
     )
     return response
+
+
+def _summarize_llm_config(config: dict) -> dict:
+    api_key = config.get("api_key") or ""
+    return {
+        "provider": config.get("provider") or "openai",
+        "model": config.get("model") or "",
+        "base_url": config.get("base_url") or "",
+        "api_key_configured": bool(api_key),
+        "api_key_preview": _preview_secret(api_key),
+    }
+
+
+def _preview_secret(value: str) -> str:
+    if not value:
+        return ""
+    if len(value) <= 8:
+        return "********"
+    return f"{value[:3]}...{value[-4:]}"

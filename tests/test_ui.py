@@ -34,6 +34,12 @@ def test_dashboard_index_served():
     assert 'id="min-listing-days"' in response.text
     assert 'id="long-only-metrics"' in response.text
     assert 'id="tradability-diagnostics"' in response.text
+    assert 'id="llm-provider"' in response.text
+    assert 'id="llm-model"' in response.text
+    assert 'id="llm-base-url"' in response.text
+    assert 'id="llm-api-key"' in response.text
+    assert 'id="save-llm-config"' in response.text
+    assert 'id="clear-llm-config"' in response.text
     assert "研究图表与下载" in response.text
     assert "Agent 审计链" in response.text
     assert "/static/app.js" in response.text
@@ -61,6 +67,9 @@ def test_dashboard_static_assets_served():
     assert "renderAuditTrail" in js_response.text
     assert "renderMetricSummary" in js_response.text
     assert "renderMetrics" in js_response.text
+    assert "ashare-factor-agent-llm-config" in js_response.text
+    assert "readLlmConfig" in js_response.text
+    assert "maskSecret" in js_response.text
     assert "POST" in js_response.text
 
 

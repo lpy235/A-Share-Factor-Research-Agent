@@ -196,6 +196,8 @@ select,
 input[type="date"],
 input[type="number"],
 input[type="text"],
+input[type="url"],
+input[type="password"],
 input:not([type]) {
   width: 100%;
   min-height: 38px;
@@ -224,6 +226,49 @@ input:focus {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+.llm-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.full-span {
+  grid-column: 1 / -1;
+}
+
+.llm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.secondary-action,
+.ghost-action {
+  min-height: 36px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.secondary-action {
+  background: var(--accent);
+  color: #fff;
+}
+
+.ghost-action {
+  background: var(--panel-soft);
+  color: var(--ink);
+}
+
+.form-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .launch-grid {
@@ -1114,6 +1159,7 @@ input:focus {
   }
 
   .field-grid,
+  .llm-form,
   .metric-strip,
   .summary-grid,
   .chart-grid,

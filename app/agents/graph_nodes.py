@@ -345,7 +345,7 @@ def _retrieval_diagnostics(
 
 def _extract_hypotheses(state: ResearchState, tracer: GraphEventTracer) -> ResearchState:
     chunks = [_chunk_from_dict(chunk) for chunk in state.get("chunks", [])]
-    extraction = StructuredFactorExtractor().extract(
+    extraction = StructuredFactorExtractor(_build_llm_client(state)).extract(
         research_topic=state["research_topic"],
         chunks=chunks,
         extraction_mode=state.get("extraction_mode", "hybrid"),
@@ -373,6 +373,30 @@ def _extract_hypotheses(state: ResearchState, tracer: GraphEventTracer) -> Resea
         }
     state["hypotheses"] = [hypothesis.model_dump() for hypothesis in hypotheses]
     return state
+
+
+def _build_llm_client(state: ResearchState):
+    if not _should_use_llm(state):
+        return None
+    llm_config = state.get("llm_config", {}) or {}
+    try:
+        from app.llm.client import LlmClient
+
+        return LlmClient(
+            provider=llm_config.get("provider"),
+            api_key=llm_config.get("api_key"),
+            base_url=llm_config.get("base_url"),
+            model=llm_config.get("model"),
+        )
+    except Exception:
+        return None
+
+
+def _should_use_llm(state: ResearchState) -> bool:
+    extraction_mode = state.get("extraction_mode", "hybrid")
+    return extraction_mode == "llm" or (
+        extraction_mode == "hybrid" and bool(state.get("enable_llm_extraction", False))
+    )
 
 
 def _generate_factor_dsl(state: ResearchState, tracer: GraphEventTracer) -> ResearchState:

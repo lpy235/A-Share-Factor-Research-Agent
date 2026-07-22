@@ -1,4 +1,4 @@
-from app.agents.graph_nodes import validate_dsl_node
+from app.agents.graph_nodes import _build_llm_client, validate_dsl_node
 from app.agents.nodes import extract_hypotheses_from_chunks, generate_factor_specs
 from app.factor.dsl import FactorSpec
 from app.rag.chunker import DocumentChunk
@@ -58,3 +58,24 @@ def test_validate_dsl_node_excludes_negative_window_and_validates_fallback():
         and event["payload"]["reason"] == "no_valid_specs"
         for event in result["trace"]
     )
+
+
+def test_workflow_builds_llm_client_from_runtime_config():
+    client = _build_llm_client(
+        {
+            "extraction_mode": "hybrid",
+            "enable_llm_extraction": True,
+            "llm_config": {
+                "provider": "custom",
+                "model": "custom-model",
+                "base_url": "https://llm.example.com/v1",
+                "api_key": "sk-runtime",
+            },
+        }
+    )
+
+    assert client is not None
+    assert client.provider == "custom"
+    assert client.model == "custom-model"
+    assert client.base_url == "https://llm.example.com/v1"
+    assert client.api_key == "sk-runtime"

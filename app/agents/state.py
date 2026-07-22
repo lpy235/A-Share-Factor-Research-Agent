@@ -18,6 +18,8 @@ class ResearchState(TypedDict, total=False):
     extraction_mode: Literal["rule", "llm", "hybrid"]
     enable_llm_extraction: bool
     llm_retry_count: int
+    llm_config: dict
+    llm_config_summary: dict
     extraction_diagnostics: dict
     data_provider: Literal["fixture", "akshare"]
     cache_enabled: bool

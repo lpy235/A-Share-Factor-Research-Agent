@@ -60,6 +60,8 @@ def run_research_workflow(state: ResearchState) -> ResearchState:
         "extraction_mode": "hybrid",
         "enable_llm_extraction": False,
         "llm_retry_count": 1,
+        "llm_config": {},
+        "llm_config_summary": {},
         "data_provider": "fixture",
         "cache_enabled": True,
         "fallback_to_fixture": True,

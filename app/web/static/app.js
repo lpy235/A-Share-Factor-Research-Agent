@@ -28,6 +28,14 @@ const uploadInput = document.querySelector("#document-file");
 const uploadLabel = document.querySelector("#upload-label");
 const workflowSteps = document.querySelectorAll("#workflow-steps li");
 const launchActions = document.querySelectorAll(".launch-action");
+const llmProvider = document.querySelector("#llm-provider");
+const llmModel = document.querySelector("#llm-model");
+const llmBaseUrl = document.querySelector("#llm-base-url");
+const llmApiKey = document.querySelector("#llm-api-key");
+const llmEnableFromSettings = document.querySelector("#llm-enable-from-settings");
+const saveLlmConfig = document.querySelector("#save-llm-config");
+const clearLlmConfig = document.querySelector("#clear-llm-config");
+const llmConfigStatus = document.querySelector("#llm-config-status");
 
 const sourceModeLabels = {
   auto: "自动找资料",
@@ -48,6 +56,7 @@ const dataProviderLabels = {
   fixture: "内置示例数据",
   akshare: "AKShare",
 };
+const LLM_CONFIG_STORAGE_KEY = "ashare-factor-agent-llm-config";
 
 let currentRun = null;
 
@@ -90,6 +99,30 @@ document.querySelectorAll("input, select, textarea").forEach((control) => {
   control.addEventListener("change", () => renderRunConfig(buildRunPayload([])));
 });
 
+saveLlmConfig.addEventListener("click", () => {
+  localStorage.setItem(LLM_CONFIG_STORAGE_KEY, JSON.stringify(readLlmConfig()));
+  syncLlmExtractionSwitch();
+  renderLlmConfigStatus("已保存模型配置到当前浏览器。");
+  renderRunConfig(buildRunPayload([]));
+});
+
+clearLlmConfig.addEventListener("click", () => {
+  localStorage.removeItem(LLM_CONFIG_STORAGE_KEY);
+  llmProvider.value = "openai";
+  llmModel.value = "gpt-5.2";
+  llmBaseUrl.value = "";
+  llmApiKey.value = "";
+  llmEnableFromSettings.checked = false;
+  syncLlmExtractionSwitch();
+  renderLlmConfigStatus("已清空模型配置。");
+  renderRunConfig(buildRunPayload([]));
+});
+
+llmEnableFromSettings.addEventListener("change", () => {
+  syncLlmExtractionSwitch();
+  renderRunConfig(buildRunPayload([]));
+});
+
 launchActions.forEach((button) => {
   button.addEventListener("click", () => {
     const mode = button.dataset.launch;
@@ -111,6 +144,7 @@ document.querySelectorAll(".tab-button").forEach((button) => {
   });
 });
 
+loadLlmConfig();
 renderRunConfig(buildRunPayload([]));
 setActiveLaunch("sample");
 loadRunHistory();
@@ -171,6 +205,7 @@ function buildRunPayload(documentIds) {
     extraction_mode: valueOf("#extraction-mode"),
     enable_llm_extraction: checked("#enable-llm"),
     llm_retry_count: 1,
+    llm_config: readLlmConfig(),
     data_provider: valueOf("#data-provider"),
     cache_enabled: checked("#cache-enabled"),
     fallback_to_fixture: checked("#fallback-to-fixture"),
@@ -182,6 +217,71 @@ function buildRunPayload(documentIds) {
     exclude_st: checked("#exclude-st"),
     min_listing_days: numberOf("#min-listing-days"),
   };
+}
+
+function loadLlmConfig() {
+  const raw = localStorage.getItem(LLM_CONFIG_STORAGE_KEY);
+  if (!raw) {
+    renderLlmConfigStatus("未保存模型配置。未启用时系统使用规则抽取。");
+    return;
+  }
+  try {
+    const config = JSON.parse(raw);
+    llmProvider.value = config.provider || "openai";
+    llmModel.value = config.model || "gpt-5.2";
+    llmBaseUrl.value = config.base_url || "";
+    llmApiKey.value = config.api_key || "";
+    llmEnableFromSettings.checked = Boolean(config.enable_llm_extraction);
+    syncLlmExtractionSwitch();
+    renderLlmConfigStatus("已从当前浏览器加载模型配置。");
+  } catch {
+    localStorage.removeItem(LLM_CONFIG_STORAGE_KEY);
+    renderLlmConfigStatus("本地模型配置格式异常，已忽略。");
+  }
+}
+
+function readLlmConfig() {
+  return {
+    provider: llmProvider.value,
+    model: llmModel.value.trim(),
+    base_url: llmBaseUrl.value.trim(),
+    api_key: llmApiKey.value.trim(),
+    enable_llm_extraction: llmEnableFromSettings.checked,
+  };
+}
+
+function syncLlmExtractionSwitch() {
+  document.querySelector("#enable-llm").checked = llmEnableFromSettings.checked;
+  if (llmEnableFromSettings.checked) {
+    document.querySelector("#extraction-mode").value = "hybrid";
+  }
+}
+
+function renderLlmConfigStatus(prefix) {
+  const config = readLlmConfig();
+  const keyText = config.api_key ? `Key ${maskSecret(config.api_key)}` : "未填写 Key";
+  const baseUrl = config.base_url || "默认 OpenAI 地址";
+  llmConfigStatus.textContent = `${prefix} 当前：${labelLlmProvider(config.provider)} / ${config.model || "未填写模型"} / ${baseUrl} / ${keyText}`;
+}
+
+function labelLlmProvider(provider) {
+  const labels = {
+    openai: "OpenAI 兼容",
+    deepseek: "DeepSeek",
+    qwen: "通义千问",
+    custom: "自定义",
+  };
+  return labels[provider] || provider;
+}
+
+function maskSecret(value) {
+  if (!value) {
+    return "";
+  }
+  if (value.length <= 8) {
+    return "********";
+  }
+  return `${value.slice(0, 3)}...${value.slice(-4)}`;
 }
 
 async function uploadDocumentIfNeeded() {
@@ -653,6 +753,7 @@ function renderRunConfig(payload) {
     <span>资料来源：${escapeHtml(labelFor(sourceModeLabels, payload.source_mode))}</span>
     <span>检索方式：${escapeHtml(labelFor(retrievalLabels, payload.retrieval_mode))}</span>
     <span>抽取方式：${escapeHtml(labelFor(extractionLabels, payload.extraction_mode))}</span>
+    <span>LLM：${escapeHtml(payload.enable_llm_extraction ? `${labelLlmProvider(payload.llm_config.provider)} / ${payload.llm_config.model || "未填写模型"}` : "未启用")}</span>
     <span>行情数据：${escapeHtml(labelFor(dataProviderLabels, payload.data_provider))}</span>
     <span>回测窗口：${escapeHtml(payload.start_date)} 至 ${escapeHtml(payload.end_date)}</span>
   `;

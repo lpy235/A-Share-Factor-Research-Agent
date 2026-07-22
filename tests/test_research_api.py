@@ -269,3 +269,37 @@ def test_research_api_rejects_uncontrolled_or_missing_universe(universe_id):
     )
 
     assert response.status_code == 422
+
+
+def test_research_api_accepts_runtime_llm_config_without_persisting_secret():
+    client = TestClient(app)
+    secret = "sk-runtime-secret-123456"
+
+    response = client.post(
+        "/research/runs",
+        json={
+            "research_topic": "A股量价类动量因子",
+            "extraction_mode": "rule",
+            "enable_llm_extraction": False,
+            "llm_config": {
+                "provider": "custom",
+                "model": "custom-model",
+                "base_url": "https://llm.example.com/v1",
+                "api_key": secret,
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    stored = client.get(f"/runs/{body['run_id']}").json()
+    summary = stored["config"]["llm_config"]
+    assert summary == {
+        "provider": "custom",
+        "model": "custom-model",
+        "base_url": "https://llm.example.com/v1",
+        "api_key_configured": True,
+        "api_key_preview": "sk-...3456",
+    }
+    assert secret not in response.text
+    assert secret not in client.get(f"/runs/{body['run_id']}").text

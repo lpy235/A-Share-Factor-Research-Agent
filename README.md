@@ -85,6 +85,13 @@ Optional embedding backends are separated from the default install:
 pip install -e ".[embedding]"
 ```
 
+LLM extraction can be configured directly in the dashboard with an OpenAI-compatible provider, model, Base URL, and API Key. The browser stores this configuration locally; run history stores only a masked summary and never persists the full key. Environment variables remain available as a server-side fallback:
+
+```env
+OPENAI_API_KEY=
+LLM_MODEL=gpt-5.2
+```
+
 ## Safety Boundary
 
 This is a research workflow demo. It does not provide investment advice, stock recommendations, return promises, order execution, or auto-trading.
