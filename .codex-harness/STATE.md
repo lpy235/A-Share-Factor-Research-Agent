@@ -144,10 +144,11 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 - [x] Negative-window fallback, interpreter regression, and validator tests added.
 - [x] README and architecture docs updated with the strict DSL contract.
 - [x] Full pytest, eval, compileall, Ruff, diff-check, and API smoke verification passed.
+- [x] Realistic A-share backtest design spec and TDD implementation plan written.
 
 ## In Progress
 
-- [ ] Stage 2 realistic backtest assumptions and execution costs.
+- [ ] Stage 2 realistic backtest engine and workflow integration.
 
 ## Next Queue
 
