@@ -13,6 +13,9 @@ def render_report(
     backtest_assumptions: dict[str, Any] | None = None,
     audit_trail: list[dict[str, Any]] | None = None,
     warnings: list[str] | None = None,
+    long_only_metrics: list[dict[str, Any]] | None = None,
+    tradability_diagnostics: dict[str, Any] | None = None,
+    universe_diagnostics: dict[str, Any] | None = None,
 ) -> str:
     oos_metrics = oos_metrics or []
     factor_correlation = factor_correlation or {}
@@ -20,6 +23,9 @@ def render_report(
     backtest_assumptions = backtest_assumptions or {}
     audit_trail = audit_trail or []
     warnings = warnings or []
+    long_only_metrics = long_only_metrics or []
+    tradability_diagnostics = tradability_diagnostics or {}
+    universe_diagnostics = universe_diagnostics or {}
     lines = [
         f"# A 股因子研究报告：{research_topic}",
         "",
@@ -76,6 +82,22 @@ def render_report(
                 f"Sharpe={_fmt(metric.get('sharpe_oos'))}"
             )
 
+    if long_only_metrics:
+        lines.extend(["", "### 可执行多头组合"])
+        lines.append("| 因子 | 年化收益 | Sharpe | 最大回撤 | 累计成本 |")
+        lines.append("| --- | ---: | ---: | ---: | ---: |")
+        for metric in long_only_metrics:
+            lines.append(
+                "| "
+                f"{metric.get('factor_name', '')} | "
+                f"{_fmt(metric.get('annualized_return'))} | "
+                f"{_fmt(metric.get('sharpe'))} | "
+                f"{_fmt(metric.get('max_drawdown'))} | "
+                f"{_fmt(metric.get('cumulative_cost'))} |"
+            )
+        lines.append("- 组合时序：t 日收盘计算，t+1 日开盘成交，持有至 t+2 日开盘。")
+        lines.append("- G5-G1 仅为研究诊断，不代表普通 A 股账户可执行的自由卖空策略。")
+
     corr_labels = factor_correlation.get("labels", [])
     corr_values = factor_correlation.get("values", [])
     if len(corr_labels) >= 2 and len(corr_values) == len(corr_labels):
@@ -95,11 +117,21 @@ def render_report(
         )
         lines.append(f"- 数据源：{backtest_assumptions.get('data_provider')}")
         lines.append(f"- 调仓频率：{backtest_assumptions.get('rebalance_frequency')}")
-        lines.append(f"- 交易成本：{backtest_assumptions.get('transaction_cost_bps')} bps")
+        lines.append(f"- 执行模式：{backtest_assumptions.get('execution_mode')}")
+        lines.append(f"- 佣金：{backtest_assumptions.get('commission_bps')} bps（买卖双边）")
+        lines.append(f"- 印花税：{backtest_assumptions.get('stamp_duty_bps')} bps（仅卖出）")
+        lines.append(f"- 滑点：{backtest_assumptions.get('slippage_bps')} bps（买卖双边）")
         lines.append(f"- 样本内/外切分：{backtest_assumptions.get('oos_split_ratio')}")
         lines.append(f"- OOS 起始日期：{backtest_assumptions.get('oos_split_date')}")
         for item in backtest_assumptions.get("bias_notes", []):
             lines.append(f"- {item}")
+    for factor_name, diagnostics in tradability_diagnostics.items():
+        applied = ", ".join(diagnostics.get("applied_rules", [])) or "无"
+        missing = ", ".join(diagnostics.get("missing_fields", [])) or "无"
+        lines.append(f"- {factor_name} 已应用交易状态：{applied}")
+        lines.append(f"- {factor_name} 未应用字段：{missing}")
+    if universe_diagnostics.get("warning"):
+        lines.append(f"- {universe_diagnostics['warning']}")
 
     lines.extend(["", "## 6. Agent 审计解释"])
     for item in audit_trail:

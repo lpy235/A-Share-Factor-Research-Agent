@@ -23,6 +23,13 @@ class ResearchState(TypedDict, total=False):
     cache_enabled: bool
     fallback_to_fixture: bool
     market_data_cache_dir: str
+    execution_mode: Literal["next_open_to_next_open"]
+    commission_bps: float
+    stamp_duty_bps: float
+    slippage_bps: float
+    exclude_st: bool
+    min_listing_days: int
+    historical_universe_id: str | None
     market_data_diagnostics: dict
     source_diagnostics: dict
     backtest_assumptions: dict
@@ -47,3 +54,10 @@ class ResearchState(TypedDict, total=False):
     _oos_split_date: str
     _factor_correlation: dict[str, Any]
     oos_metrics: list[dict]
+    gross_backtest_series: dict
+    net_backtest_series: dict
+    turnover_series: dict
+    cost_series: dict
+    long_only_metrics: list[dict]
+    tradability_diagnostics: dict
+    universe_diagnostics: dict

@@ -34,6 +34,7 @@ def test_artifact_store_writes_manifest_and_downloadable_files(tmp_path):
     names = {item["name"] for item in artifacts}
     assert names == {
         "backtest_series.json",
+        "backtest_diagnostics.json",
         "bundle.json",
         "cumulative_ic.png",
         "drawdown_curve.png",
@@ -48,6 +49,7 @@ def test_artifact_store_writes_manifest_and_downloadable_files(tmp_path):
         "monthly_heatmap.png",
         "oos_metrics.json",
         "rank_ic_timeseries.png",
+        "portfolio_backtest.json",
         "report.md",
         "rolling_sharpe.png",
     }

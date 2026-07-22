@@ -173,3 +173,49 @@ def test_node_order_is_stable_and_readable():
         "SelectFactorsNode",
         "GenerateReportNode",
     ]
+
+
+def test_workflow_exposes_cost_aware_long_only_outputs(tmp_path):
+    state = run_research_workflow(
+        {
+            "run_id": "test_cost_aware_portfolio",
+            "research_topic": "A股量价类动量因子",
+            "source_mode": "upload",
+            "start_date": "2020-01-01",
+            "end_date": "2020-06-30",
+            "cache_enabled": False,
+            "market_data_cache_dir": str(tmp_path),
+        }
+    )
+    factor = "volume_price_momentum"
+
+    assert state["gross_backtest_series"][factor]
+    assert state["net_backtest_series"][factor]
+    assert state["turnover_series"][factor]
+    assert state["cost_series"][factor]["full"]
+    assert state["long_only_metrics"][0]["factor_name"] == factor
+    assert state["tradability_diagnostics"][factor]["executable"] is True
+    assert state["universe_diagnostics"]["historical_membership_applied"] is False
+    assert "生存者偏差" in state["universe_diagnostics"]["warning"]
+
+
+def test_is_and_oos_portfolios_each_start_flat(tmp_path):
+    state = run_research_workflow(
+        {
+            "run_id": "test_portfolio_segments_start_flat",
+            "research_topic": "A股量价类动量因子",
+            "source_mode": "upload",
+            "start_date": "2020-01-01",
+            "end_date": "2020-06-30",
+            "cache_enabled": False,
+            "market_data_cache_dir": str(tmp_path),
+        }
+    )
+    costs = state["cost_series"]["volume_price_momentum"]
+
+    assert costs["is"][0]["sell_turnover"] == 0
+    assert costs["oos"][0]["sell_turnover"] == 0
+    first_is_buy = next(item for item in costs["is"] if item["buy_turnover"] > 0)
+    first_oos_buy = next(item for item in costs["oos"] if item["buy_turnover"] > 0)
+    assert first_is_buy["sell_turnover"] == 0
+    assert first_oos_buy["sell_turnover"] == 0

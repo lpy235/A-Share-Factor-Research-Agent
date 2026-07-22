@@ -132,6 +132,26 @@
                     <span>片段数量</span>
                     <input id="max-chunks" name="max_chunks" type="number" min="1" max="12" value="5" />
                   </label>
+
+                  <label class="field">
+                    <span>佣金 (bps)</span>
+                    <input id="commission-bps" type="number" min="0" step="0.1" value="3" />
+                  </label>
+
+                  <label class="field">
+                    <span>印花税 (bps)</span>
+                    <input id="stamp-duty-bps" type="number" min="0" step="0.1" value="5" />
+                  </label>
+
+                  <label class="field">
+                    <span>滑点 (bps)</span>
+                    <input id="slippage-bps" type="number" min="0" step="0.1" value="5" />
+                  </label>
+
+                  <label class="field">
+                    <span>最少上市天数</span>
+                    <input id="min-listing-days" type="number" min="0" step="1" value="60" />
+                  </label>
                 </div>
 
                 <div class="toggle-stack">
@@ -150,6 +170,10 @@
                   <label class="switchline">
                     <input id="allow-live-fetch" type="checkbox" />
                     <span>允许实时抓取公开资料</span>
+                  </label>
+                  <label class="switchline">
+                    <input id="exclude-st" type="checkbox" checked />
+                    <span>排除 ST 股票</span>
                   </label>
                 </div>
               </details>
@@ -260,6 +284,26 @@
                 </div>
               </div>
               <div id="metrics-table" class="table-wrap empty-state">暂无指标。</div>
+            </article>
+
+            <article class="result-card">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">可执行组合</p>
+                  <h3>多头净收益指标</h3>
+                </div>
+              </div>
+              <div id="long-only-metrics" class="diagnostic-list empty-state">暂无组合指标。</div>
+            </article>
+
+            <article class="result-card">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">交易边界</p>
+                  <h3>可交易性诊断</h3>
+                </div>
+              </div>
+              <div id="tradability-diagnostics" class="diagnostic-list empty-state">暂无交易诊断。</div>
             </article>
 
             <article class="result-card artifact-card wide-card">

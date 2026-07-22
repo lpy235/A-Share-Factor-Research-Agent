@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -29,6 +30,13 @@ def test_research_api_returns_v2_compatible_response_and_node_trace():
         "oos_metrics",
         "factor_correlation",
         "backtest_series",
+        "gross_backtest_series",
+        "net_backtest_series",
+        "turnover_series",
+        "cost_series",
+        "long_only_metrics",
+        "tradability_diagnostics",
+        "universe_diagnostics",
         "report_markdown",
         "artifacts",
         "source_diagnostics",
@@ -42,6 +50,9 @@ def test_research_api_returns_v2_compatible_response_and_node_trace():
     assert body["oos_metrics"]
     assert {"labels", "values"}.issubset(body["factor_correlation"])
     assert body["backtest_series"]["volume_price_momentum"]["rank_ic"]
+    assert body["gross_backtest_series"]["volume_price_momentum"]
+    assert body["net_backtest_series"]["volume_price_momentum"]
+    assert body["long_only_metrics"][0]["factor_name"] == "volume_price_momentum"
     assert body["source_diagnostics"]["accepted_count"] >= 1
     assert body["backtest_assumptions"]["universe"] == "CSI300"
     assert body["audit_trail"]
@@ -57,6 +68,8 @@ def test_research_api_returns_v2_compatible_response_and_node_trace():
         "rank_ic_timeseries.png",
         "long_short_equity.png",
         "grouped_returns.png",
+        "portfolio_backtest.json",
+        "backtest_diagnostics.json",
     }.issubset(artifact_names)
 
     events_response = client.get(f"/runs/{body['run_id']}/events")
@@ -175,3 +188,84 @@ def test_research_api_accepts_data_provider_controls(tmp_path):
     assert response.status_code == 200
     body = response.json()
     assert "volume_price_momentum" in body["selected_factors"]
+
+
+def test_research_api_accepts_realistic_backtest_configuration():
+    response = TestClient(app).post(
+        "/research/runs",
+        json={
+            "research_topic": "A股量价类动量因子",
+            "execution_mode": "next_open_to_next_open",
+            "commission_bps": 2,
+            "stamp_duty_bps": 4,
+            "slippage_bps": 6,
+            "exclude_st": False,
+            "min_listing_days": 20,
+        },
+    )
+
+    assert response.status_code == 200
+    assumptions = response.json()["backtest_assumptions"]
+    assert assumptions["execution_mode"] == "next_open_to_next_open"
+    assert assumptions["commission_bps"] == 2
+    assert assumptions["stamp_duty_bps"] == 4
+    assert assumptions["slippage_bps"] == 6
+    assert assumptions["exclude_st"] is False
+    assert assumptions["min_listing_days"] == 20
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("commission_bps", -1),
+        ("stamp_duty_bps", -1),
+        ("slippage_bps", -1),
+        ("min_listing_days", -1),
+        ("execution_mode", "same_close"),
+    ],
+)
+def test_research_api_rejects_invalid_backtest_configuration(field, value):
+    response = TestClient(app).post(
+        "/research/runs",
+        json={"research_topic": "test", field: value},
+    )
+
+    assert response.status_code == 422
+
+
+def test_research_api_applies_registered_historical_universe():
+    client = TestClient(app)
+    upload = client.post(
+        "/universes",
+        files={
+            "file": (
+                "membership.csv",
+                b"date,symbol,in_universe\n2020-01-02,000001,true\n",
+                "text/csv",
+            )
+        },
+    )
+    universe_id = upload.json()["historical_universe_id"]
+
+    response = client.post(
+        "/research/runs",
+        json={
+            "research_topic": "A股量价类动量因子",
+            "historical_universe_id": universe_id,
+        },
+    )
+
+    assert response.status_code == 200
+    diagnostics = response.json()["universe_diagnostics"]
+    assert diagnostics["historical_membership_applied"] is True
+    assert diagnostics["historical_universe_id"] == universe_id
+
+
+@pytest.mark.parametrize("universe_id", ["../membership.csv", "universe_000000000000"])
+def test_research_api_rejects_uncontrolled_or_missing_universe(universe_id):
+    response = TestClient(app).post(
+        "/research/runs",
+        json={"research_topic": "test", "historical_universe_id": universe_id},
+    )
+
+    assert response.status_code == 422

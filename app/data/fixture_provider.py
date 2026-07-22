@@ -30,5 +30,10 @@ class FixtureAshareDataProvider:
         df["low"] = df[["open", "close"]].min(axis=1) * 0.99
         df["volume"] = rng.integers(100_000, 2_000_000, size=len(idx))
         df["amount"] = df["close"] * df["volume"]
+        df["in_universe"] = True
+        df["is_suspended"] = False
+        df["is_st"] = False
+        df["days_since_listing"] = df.groupby(level="symbol").cumcount().to_numpy() + 365
+        df["limit_up"] = False
+        df["limit_down"] = False
         return df
-

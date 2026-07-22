@@ -27,6 +27,13 @@ def test_dashboard_index_served():
     assert 'id="source-diagnostics"' in response.text
     assert 'id="backtest-assumptions"' in response.text
     assert 'id="audit-trail"' in response.text
+    assert 'id="commission-bps"' in response.text
+    assert 'id="stamp-duty-bps"' in response.text
+    assert 'id="slippage-bps"' in response.text
+    assert 'id="exclude-st"' in response.text
+    assert 'id="min-listing-days"' in response.text
+    assert 'id="long-only-metrics"' in response.text
+    assert 'id="tradability-diagnostics"' in response.text
     assert "研究图表与下载" in response.text
     assert "Agent 审计链" in response.text
     assert "/static/app.js" in response.text

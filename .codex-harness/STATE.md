@@ -3,7 +3,7 @@
 ## Current Phase
 
 ```text
-Stage 1 P0 Factor DSL safety and correctness complete
+Stage 2 realistic A-share backtesting complete
 ```
 
 ## Workspace
@@ -145,14 +145,22 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 - [x] README and architecture docs updated with the strict DSL contract.
 - [x] Full pytest, eval, compileall, Ruff, diff-check, and API smoke verification passed.
 - [x] Realistic A-share backtest design spec and TDD implementation plan written.
+- [x] Next-open equal-weight long-only portfolio engine implemented.
+- [x] Configurable commission, sell-side stamp duty, slippage, and turnover implemented.
+- [x] ST, listing-age, suspension, limit-up, limit-down, and missing-field diagnostics implemented.
+- [x] Controlled historical-universe CSV registration and opaque-ID resolution implemented.
+- [x] Independent flat-start IS/OOS portfolio integration and additive API outputs implemented.
+- [x] Portfolio artifacts, report disclosures, dashboard controls, and documentation updated.
+- [x] `pytest -v` passed with 139 tests after realistic backtest implementation.
+- [x] `python evals/run_eval.py` passed with 5/5 correct and accuracy 1.0.
+- [x] Compileall, Ruff, JavaScript syntax, diff-check, and API smoke verification passed.
 
 ## In Progress
 
-- [ ] Stage 2 realistic backtest engine and workflow integration.
+- [ ] Stage 3 versioned factor registry design.
 
 ## Next Queue
 
-- [ ] Add transaction costs, slippage, turnover, historical universes, and stronger IS/OOS validation.
 - [ ] Build a versioned factor registry after the backtest layer is stable.
 
 ## Known Risks

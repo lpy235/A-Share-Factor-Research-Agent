@@ -1,13 +1,16 @@
 from uuid import uuid4
 
-from fastapi import APIRouter
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException
+from typing import Literal
+
+from pydantic import BaseModel, Field
 
 from app.agents.graph import run_research_workflow
 from app.storage.db import init_db
 from app.storage.artifacts import ArtifactStore
 from app.storage.events import EventStore
 from app.storage.runs import RunStore
+from app.storage.universes import HistoricalUniverseStore
 
 router = APIRouter(prefix="/research", tags=["research"])
 
@@ -37,10 +40,24 @@ class ResearchRunRequest(BaseModel):
     cache_enabled: bool = True
     fallback_to_fixture: bool = True
     market_data_cache_dir: str = "data_cache"
+    execution_mode: Literal["next_open_to_next_open"] = "next_open_to_next_open"
+    commission_bps: float = Field(default=3.0, ge=0)
+    stamp_duty_bps: float = Field(default=5.0, ge=0)
+    slippage_bps: float = Field(default=5.0, ge=0)
+    exclude_st: bool = True
+    min_listing_days: int = Field(default=60, ge=0)
+    historical_universe_id: str | None = Field(
+        default=None, pattern=r"^universe_[0-9a-f]{12}$"
+    )
 
 
 @router.post("/runs")
 def create_research_run(request: ResearchRunRequest):
+    if request.historical_universe_id:
+        try:
+            HistoricalUniverseStore().load(request.historical_universe_id)
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(status_code=422, detail="Historical universe not found") from exc
     run_id = f"run_{uuid4().hex[:12]}"
     request_config = request.model_dump()
     document_paths = []
@@ -68,6 +85,13 @@ def create_research_run(request: ResearchRunRequest):
             "data_provider": request.data_provider,
             "cache_enabled": request.cache_enabled,
             "fallback_to_fixture": request.fallback_to_fixture,
+            "execution_mode": request.execution_mode,
+            "commission_bps": request.commission_bps,
+            "stamp_duty_bps": request.stamp_duty_bps,
+            "slippage_bps": request.slippage_bps,
+            "exclude_st": request.exclude_st,
+            "min_listing_days": request.min_listing_days,
+            "historical_universe_id": request.historical_universe_id,
         },
     )
     state = run_research_workflow(
@@ -92,6 +116,13 @@ def create_research_run(request: ResearchRunRequest):
             "fallback_to_fixture": request.fallback_to_fixture,
             "market_data_cache_dir": request.market_data_cache_dir,
             "event_db_path": DB_PATH,
+            "execution_mode": request.execution_mode,
+            "commission_bps": request.commission_bps,
+            "stamp_duty_bps": request.stamp_duty_bps,
+            "slippage_bps": request.slippage_bps,
+            "exclude_st": request.exclude_st,
+            "min_listing_days": request.min_listing_days,
+            "historical_universe_id": request.historical_universe_id,
         }
     )
     event_store.append(
@@ -112,6 +143,17 @@ def create_research_run(request: ResearchRunRequest):
         backtest_series=state.get("backtest_series", {}),
         oos_metrics=state.get("oos_metrics", []),
         factor_correlation=state.get("_factor_correlation"),
+        portfolio_results={
+            "gross_backtest_series": state.get("gross_backtest_series", {}),
+            "net_backtest_series": state.get("net_backtest_series", {}),
+            "turnover_series": state.get("turnover_series", {}),
+            "cost_series": state.get("cost_series", {}),
+            "long_only_metrics": state.get("long_only_metrics", []),
+        },
+        backtest_diagnostics={
+            "tradability": state.get("tradability_diagnostics", {}),
+            "universe": state.get("universe_diagnostics", {}),
+        },
     )
     response = {
         "run_id": run_id,
@@ -122,6 +164,13 @@ def create_research_run(request: ResearchRunRequest):
         "oos_metrics": state.get("oos_metrics", []),
         "factor_correlation": state.get("_factor_correlation", {"labels": [], "values": []}),
         "backtest_series": state.get("backtest_series", {}),
+        "gross_backtest_series": state.get("gross_backtest_series", {}),
+        "net_backtest_series": state.get("net_backtest_series", {}),
+        "turnover_series": state.get("turnover_series", {}),
+        "cost_series": state.get("cost_series", {}),
+        "long_only_metrics": state.get("long_only_metrics", []),
+        "tradability_diagnostics": state.get("tradability_diagnostics", {}),
+        "universe_diagnostics": state.get("universe_diagnostics", {}),
         "report_markdown": state["report_markdown"],
         "artifacts": artifacts,
         "source_diagnostics": state.get("source_diagnostics", {}),

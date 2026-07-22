@@ -17,7 +17,8 @@ public/uploaded research material
 -> DSL validation
 -> fixture or AKShare A-share daily data
 -> factor execution
--> IC / RankIC / grouped returns / long-short metrics
+-> IC / RankIC / grouped returns / diagnostic long-short metrics
+-> next-open long-only portfolio / turnover / transaction costs
 -> factor selection
 -> Markdown report and LangGraph event trace
 ```
@@ -42,16 +43,16 @@ Each node writes compact SQLite events through `EventStore`. The dashboard reads
 ## Module Map
 
 ```text
-app/api        FastAPI routers for UI, document upload, research runs, trace events
+app/api        FastAPI routers for UI, document/universe upload, research runs, trace events
 app/agents     LangGraph workflow, node implementations, extraction schemas/prompts
-app/backtest   IC, grouped return, selection, and risk metrics
+app/backtest   IC diagnostics, next-open portfolio simulation, costs, selection, and risk metrics
 app/data       Fixture data, optional AKShare adapter, local daily-bar cache
 app/factor     Restricted Factor DSL, strict validator, operators, controlled AST interpreter
 app/llm        OpenAI-compatible client wrapper
 app/rag        Chunking, keyword retrieval, hashing embeddings, vector/hybrid retrieval
 app/reports    Markdown report and chart helpers
 app/sources    Public-source policy, discovery, fetching, parsing
-app/storage    SQLite event storage and filesystem document storage
+app/storage    SQLite events and controlled document/historical-universe storage
 app/web        FastAPI-served dashboard assets
 evals          Deterministic evaluation tasks
 fixture_docs   Demo research note
@@ -93,3 +94,21 @@ Negative, zero, non-integer, and oversized windows are rejected. This prevents f
 `FactorExecutor` does not evaluate formula strings as general Python. After validation, it passes the parsed expression tree to an in-process controlled AST interpreter. The interpreter resolves field names from the market-data environment and operator names from the registry, and implements only approved numeric constants, arithmetic nodes, unary negation, and calls. Attributes, subscripts, comprehensions, lambdas, imports, builtins, and dynamic lookup are outside the executable surface. The returned value must be a Pandas `Series` whose index matches the input market-data index.
 
 The interpreter is an application-level semantic boundary, not a resource sandbox. It runs in the API/worker process and does not by itself provide CPU, memory, wall-clock, or operating-system isolation. A production deployment that accepts untrusted formulas should add process isolation, execution timeouts, memory limits, and workload quotas around this layer.
+
+## Backtest Semantics
+
+The legacy single-factor layer computes close-to-next-close forward returns for Rank IC and G5-G1 diagnostics. It remains unchanged for compatibility. The executable portfolio layer is separate and uses:
+
+```text
+signal at t close -> execution at t+1 open -> valuation at t+2 open
+```
+
+`BacktestConfig` validates the execution mode, commission, sell-side stamp duty, slippage, ST filter, and minimum listing age. `run_long_only_backtest` ranks the direction-normalized factor, holds the top quintile at equal weight, checks execution-date suspension and price limits, carries positions that cannot be sold, and returns gross/net returns, turnover, component costs, weights, and diagnostics. IS and OOS data slices invoke the engine independently so both segments begin flat.
+
+Optional market-data fields are applied only when present:
+
+```text
+in_universe is_suspended is_st days_since_listing limit_up limit_down
+```
+
+Missing fields appear in `tradability_diagnostics`; the system never claims an unavailable rule was enforced. Historical membership is registered through `POST /universes` as a strict `date,symbol,in_universe` CSV and resolved only by an opaque `historical_universe_id`. Without it, the fixed provider universe is retained with an explicit survivorship-bias warning.

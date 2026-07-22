@@ -32,3 +32,41 @@ def test_report_contains_disclaimer_and_sections():
     assert "OOS 明细" in report
     assert "因子相关性" in report
     assert "momentum_20" in report
+
+
+def test_report_discloses_realistic_timing_costs_and_universe_limitations():
+    report = render_report(
+        research_topic="test",
+        sources=[],
+        factors=[],
+        metrics=[],
+        limitations=[],
+        backtest_assumptions={
+            "execution_mode": "next_open_to_next_open",
+            "commission_bps": 3,
+            "stamp_duty_bps": 5,
+            "slippage_bps": 5,
+        },
+        long_only_metrics=[
+            {
+                "factor_name": "momentum_20",
+                "annualized_return": 0.12,
+                "sharpe": 1.0,
+                "max_drawdown": -0.08,
+                "cumulative_cost": 0.01,
+            }
+        ],
+        tradability_diagnostics={
+            "momentum_20": {
+                "applied_rules": ["is_suspended", "limit_up"],
+                "missing_fields": ["limit_down"],
+            }
+        },
+        universe_diagnostics={"warning": "未提供历史成分股，结果可能存在生存者偏差。"},
+    )
+
+    assert "t 日收盘计算，t+1 日开盘成交" in report
+    assert "印花税：5 bps" in report
+    assert "可执行多头组合" in report
+    assert "生存者偏差" in report
+    assert "未应用字段：limit_down" in report

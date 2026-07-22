@@ -37,7 +37,8 @@ public/uploaded research material
 -> schema-validated or rule-based factor extraction
 -> restricted Factor DSL
 -> fixture or optional AKShare A-share daily data
--> IS/OOS Rank IC, ICIR, grouped returns, long-short metrics
+-> IS/OOS Rank IC, ICIR, grouped returns, diagnostic long-short metrics
+-> next-open equal-weight long-only portfolio, turnover, costs, and tradability checks
 -> IC decay and factor-correlation diagnostics
 -> factor selection with rejection reasons
 -> Markdown report + charts + JSON research bundle + LangGraph trace
@@ -72,7 +73,9 @@ The dashboard default run is deterministic: no OpenAI key, no live data source, 
 - Rule-based extraction by default, with optional schema-validated LLM extraction.
 - Restricted Factor DSL with whitelisted fields and operators, strict window semantics, and controlled AST interpretation.
 - Deterministic fixture A-share data plus optional AKShare mode and local CSV cache.
-- Factor validation, IS/OOS Rank IC, ICIR, grouped returns, long-short metrics, and factor selection.
+- Factor validation, IS/OOS Rank IC, ICIR, grouped returns, diagnostic long-short metrics, and factor selection.
+- Next-open equal-weight long-only backtest with configurable commission, sell-side stamp duty, slippage, and turnover.
+- Optional ST, listing-age, suspension, price-limit, and registered historical-universe filters with explicit missing-data diagnostics.
 - IC decay, factor-correlation matrix, rolling Sharpe, monthly-return heatmap, and downloadable research bundles.
 - Deterministic eval runner and 60+ pytest coverage.
 
@@ -102,14 +105,14 @@ Validated formulas run through an in-process controlled AST interpreter. The int
 ## Repository Map
 
 ```text
-app/api        FastAPI routes for dashboard, documents, runs, and trace events
+app/api        FastAPI routes for dashboard, documents, universes, runs, and trace events
 app/agents     LangGraph workflow, nodes, extraction logic, prompts, schemas
-app/backtest   Factor metrics and selection
+app/backtest   Factor diagnostics, next-open portfolio simulation, costs, and selection
 app/data       Fixture data, optional AKShare adapter, daily-bar cache
 app/factor     Restricted Factor DSL, validator, operators, executor
 app/rag        Chunking, keyword retrieval, hashing embeddings, vector retrieval
 app/sources    Public-source policy, discovery, fetching, parsing
-app/storage    SQLite event store and uploaded document store
+app/storage    SQLite events plus uploaded document and historical-universe stores
 app/web        Browser dashboard
 evals          Deterministic evaluation set
 tests          Unit, API, graph, and integration tests
@@ -141,6 +144,22 @@ curl -s -X POST http://127.0.0.1:8000/research/runs \
   -H 'Content-Type: application/json' \
   -d '{"research_topic":"A股量价类动量因子","source_mode":"auto","data_provider":"fixture","cache_enabled":true}'
 ```
+
+## Realistic Backtest Convention
+
+The executable portfolio uses a fixed daily convention:
+
+```text
+t close: calculate factor signal
+t+1 open: trade into the target portfolio
+t+1 open to t+2 open: measure portfolio return
+```
+
+The top factor quintile is held as an equal-weight long-only portfolio. Factor direction is applied before ranking. `unknown` direction factors remain available for IC diagnostics but do not produce an executable portfolio. The existing G5-G1 result is retained as a research diagnostic and is not presented as an ordinary A-share short-selling strategy.
+
+Default costs are 3 bps commission on buys and sells, 5 bps stamp duty on sells, and 5 bps slippage on buys and sells. They are request parameters and are displayed in the report. IS and OOS portfolios each start from cash.
+
+Market data may provide `in_universe`, `is_suspended`, `is_st`, `days_since_listing`, `limit_up`, and `limit_down`. Available rules are applied; missing fields are reported rather than assumed. Historical membership CSV files use `date,symbol,in_universe`, are uploaded through `POST /universes`, and are referenced by the returned `historical_universe_id`. Arbitrary server paths are not accepted.
 
 ## Docs
 

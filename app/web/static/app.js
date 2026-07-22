@@ -20,6 +20,8 @@ const artifactList = document.querySelector("#artifact-list");
 const runHistory = document.querySelector("#run-history");
 const sourceDiagnostics = document.querySelector("#source-diagnostics");
 const backtestAssumptions = document.querySelector("#backtest-assumptions");
+const longOnlyMetrics = document.querySelector("#long-only-metrics");
+const tradabilityDiagnostics = document.querySelector("#tradability-diagnostics");
 const auditTrail = document.querySelector("#audit-trail");
 const runConfig = document.querySelector("#run-config");
 const uploadInput = document.querySelector("#document-file");
@@ -173,6 +175,12 @@ function buildRunPayload(documentIds) {
     cache_enabled: checked("#cache-enabled"),
     fallback_to_fixture: checked("#fallback-to-fixture"),
     market_data_cache_dir: "data_cache",
+    execution_mode: "next_open_to_next_open",
+    commission_bps: numberOf("#commission-bps"),
+    stamp_duty_bps: numberOf("#stamp-duty-bps"),
+    slippage_bps: numberOf("#slippage-bps"),
+    exclude_st: checked("#exclude-st"),
+    min_listing_days: numberOf("#min-listing-days"),
   };
 }
 
@@ -260,6 +268,11 @@ function renderRun(run) {
   renderArtifacts(run.artifacts || []);
   renderSourceDiagnostics(run.source_diagnostics || {});
   renderBacktestAssumptions(run.backtest_assumptions || {});
+  renderLongOnlyMetrics(run.long_only_metrics || []);
+  renderTradabilityDiagnostics(
+    run.tradability_diagnostics || {},
+    run.universe_diagnostics || {},
+  );
   renderAuditTrail(run.audit_trail || []);
   reportOutput.textContent = run.report_markdown || "接口未返回研究报告。";
   rawOutput.textContent = JSON.stringify(run, null, 2);
@@ -443,7 +456,10 @@ function renderBacktestAssumptions(assumptions) {
     ["区间", assumptions.start_date && `${assumptions.start_date} 至 ${assumptions.end_date}`],
     ["数据源", assumptions.data_provider],
     ["调仓", assumptions.rebalance_frequency],
-    ["交易成本", `${assumptions.transaction_cost_bps ?? 0} bps`],
+    ["执行", assumptions.execution_mode],
+    ["佣金", `${assumptions.commission_bps ?? 0} bps`],
+    ["印花税", `${assumptions.stamp_duty_bps ?? 0} bps`],
+    ["滑点", `${assumptions.slippage_bps ?? 0} bps`],
     ["样本切分", assumptions.oos_split_ratio],
     ["OOS 起点", assumptions.oos_split_date],
   ].filter((item) => item[1]);
@@ -456,6 +472,36 @@ function renderBacktestAssumptions(assumptions) {
     ${entries.map(([label, value]) => `<div class="diagnostic-row"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(value)}</span></div>`).join("")}
     ${(assumptions.bias_notes || []).map((item) => `<p class="diagnostic-note">${escapeHtml(item)}</p>`).join("")}
   `;
+}
+
+function renderLongOnlyMetrics(metrics) {
+  longOnlyMetrics.classList.toggle("empty-state", metrics.length === 0);
+  longOnlyMetrics.innerHTML = metrics.length
+    ? metrics.map((metric) => `
+        <div class="diagnostic-row">
+          <strong>${escapeHtml(metric.factor_name)}</strong>
+          <span>年化 ${formatMetric(metric.annualized_return)} · Sharpe ${formatMetric(metric.sharpe)}</span>
+          <small>回撤 ${formatMetric(metric.max_drawdown)} · 累计成本 ${formatMetric(metric.cumulative_cost)}</small>
+        </div>
+      `).join("")
+    : "暂无组合指标。";
+}
+
+function renderTradabilityDiagnostics(diagnostics, universe) {
+  const entries = Object.entries(diagnostics);
+  tradabilityDiagnostics.classList.toggle("empty-state", entries.length === 0);
+  tradabilityDiagnostics.innerHTML = entries.length
+    ? `
+      ${entries.map(([factor, item]) => `
+        <div class="diagnostic-row">
+          <strong>${escapeHtml(factor)}</strong>
+          <span>已应用：${escapeHtml((item.applied_rules || []).join(", ") || "无")}</span>
+          <small>缺失：${escapeHtml((item.missing_fields || []).join(", ") || "无")}</small>
+        </div>
+      `).join("")}
+      ${universe.warning ? `<p class="diagnostic-note">${escapeHtml(universe.warning)}</p>` : ""}
+    `
+    : "暂无交易诊断。";
 }
 
 function renderAuditTrail(entries) {

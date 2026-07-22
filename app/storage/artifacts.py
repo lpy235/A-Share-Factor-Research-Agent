@@ -35,10 +35,14 @@ class ArtifactStore:
         backtest_series: dict[str, Any] | None = None,
         oos_metrics: list[dict[str, Any]] | None = None,
         factor_correlation: dict[str, Any] | None = None,
+        portfolio_results: dict[str, Any] | None = None,
+        backtest_diagnostics: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         backtest_series = backtest_series or {}
         oos_metrics = oos_metrics or []
         factor_correlation = factor_correlation or {}
+        portfolio_results = portfolio_results or {}
+        backtest_diagnostics = backtest_diagnostics or {}
         run_dir = self._run_dir(run_id)
         run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -48,6 +52,8 @@ class ArtifactStore:
         self._write_json(run_dir / "factors.json", factor_specs)
         self._write_json(run_dir / "backtest_series.json", backtest_series)
         self._write_json(run_dir / "factor_correlation.json", factor_correlation)
+        self._write_json(run_dir / "portfolio_backtest.json", portfolio_results)
+        self._write_json(run_dir / "backtest_diagnostics.json", backtest_diagnostics)
         self._write_json(
             run_dir / "bundle.json",
             {
@@ -58,6 +64,8 @@ class ArtifactStore:
                 "oos_metrics": oos_metrics,
                 "backtest_series": backtest_series,
                 "factor_correlation": factor_correlation,
+                "portfolio_results": portfolio_results,
+                "backtest_diagnostics": backtest_diagnostics,
                 "report_markdown": report_markdown,
             },
         )
@@ -141,6 +149,8 @@ def _label_for(name: str) -> str:
         "ic_decay.png": "IC 衰减 (滚动20日)",
         "factor_correlation.png": "因子相关性矩阵",
         "factor_correlation.json": "因子相关性 JSON",
+        "portfolio_backtest.json": "可执行多头组合回测 JSON",
+        "backtest_diagnostics.json": "交易约束与股票池诊断 JSON",
     }
     return labels.get(name, name)
 

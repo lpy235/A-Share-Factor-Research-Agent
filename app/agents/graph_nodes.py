@@ -10,7 +10,9 @@ from app.agents.nodes import extract_hypotheses_from_chunks, generate_factor_spe
 from app.agents.schemas import FactorHypothesis
 from app.agents.state import ResearchState
 from app.backtest.correlation import compute_factor_correlation_matrix
-from app.backtest.metrics import max_drawdown, sharpe_ratio
+from app.backtest.config import BacktestConfig
+from app.backtest.metrics import annualized_return, max_drawdown, sharpe_ratio
+from app.backtest.portfolio import PortfolioBacktestResult, run_long_only_backtest
 from app.backtest.selector import FactorScore, FactorSelector
 from app.backtest.single_factor import (
     compute_forward_returns,
@@ -29,6 +31,7 @@ from app.rag.vector_retriever import HybridRetriever, RetrievalResult, VectorRet
 from app.reports.markdown_report import render_report
 from app.sources.discovery import PublicSourceDiscovery
 from app.sources.parser import DocumentParser, ParsedDocument
+from app.storage.universes import HistoricalUniverseStore
 
 
 def load_documents_node(state: ResearchState) -> ResearchState:
@@ -428,6 +431,7 @@ def _load_market_data(state: ResearchState, tracer: GraphEventTracer) -> Researc
     data, symbols, diagnostics = _fetch_market_data_with_fallback(state, selection, tracer)
     if data.empty:
         raise ValueError(f"No market data returned by {diagnostics.get('provider')}")
+    data = _apply_historical_universe(state, data)
 
     dates = pd.DatetimeIndex(pd.to_datetime(data.index.get_level_values("date"))).unique().sort_values()
     if len(dates) > 1:
@@ -449,6 +453,35 @@ def _load_market_data(state: ResearchState, tracer: GraphEventTracer) -> Researc
     }
     state["backtest_assumptions"] = _build_backtest_assumptions(state, diagnostics)
     return state
+
+
+def _apply_historical_universe(state: ResearchState, data: pd.DataFrame) -> pd.DataFrame:
+    universe_id = state.get("historical_universe_id")
+    if not universe_id:
+        state["universe_diagnostics"] = {
+            "source": "fixed_provider_universe",
+            "historical_membership_applied": False,
+            "warning": "未提供历史成分股，结果可能存在生存者偏差。",
+        }
+        return data
+    try:
+        membership = HistoricalUniverseStore().load(universe_id)
+    except KeyError as exc:
+        raise ValueError(f"Historical universe not found: {universe_id}") from exc
+    membership = membership.reorder_levels(["symbol", "date"]).sort_index()
+    result = data.drop(columns=["in_universe"], errors="ignore").join(
+        membership.rename("in_universe"), how="left"
+    )
+    matched_rows = int(result["in_universe"].notna().sum())
+    result["in_universe"] = result["in_universe"].fillna(False).astype(bool)
+    state["universe_diagnostics"] = {
+        "source": "historical_universe_artifact",
+        "historical_universe_id": universe_id,
+        "historical_membership_applied": True,
+        "matched_rows": matched_rows,
+        "member_rows": int(result["in_universe"].sum()),
+    }
+    return result
 
 
 def _fetch_market_data_with_fallback(
@@ -556,6 +589,24 @@ def _run_backtest(state: ResearchState, tracer: GraphEventTracer) -> ResearchSta
     metrics = []
     oos_metrics = []
     backtest_series = {}
+    gross_backtest_series = {}
+    net_backtest_series = {}
+    turnover_series = {}
+    cost_series = {}
+    long_only_metrics = []
+    tradability_diagnostics = {}
+    factor_directions = {
+        item.get("factor_name"): item.get("direction", "unknown")
+        for item in state.get("factor_specs", [])
+    }
+    portfolio_config = BacktestConfig(
+        execution_mode=state.get("execution_mode", "next_open_to_next_open"),
+        commission_bps=state.get("commission_bps", 3.0),
+        stamp_duty_bps=state.get("stamp_duty_bps", 5.0),
+        slippage_bps=state.get("slippage_bps", 5.0),
+        exclude_st=state.get("exclude_st", True),
+        min_listing_days=state.get("min_listing_days", 60),
+    )
 
     for factor_name, factor in factor_values.items():
         # ------- In-sample -------
@@ -612,9 +663,49 @@ def _run_backtest(state: ResearchState, tracer: GraphEventTracer) -> ResearchSta
         metric["mean_rank_ic_oos"] = round(_safe_float(ic_oos), 6)
         metric["ic_decay_ratio"] = round(ic_decay, 4) if ic_decay is not None else None
 
+        portfolio_is = _run_portfolio_segment(
+            factor_is, data_is, factor_directions.get(factor_name, "unknown"), portfolio_config
+        )
+        portfolio_oos = _run_portfolio_segment(
+            factor_oos, data_oos, factor_directions.get(factor_name, "unknown"), portfolio_config
+        )
+        gross_full = _merge_series(portfolio_is.gross_returns, portfolio_oos.gross_returns)
+        net_full = _merge_series(portfolio_is.net_returns, portfolio_oos.net_returns)
+        turnover_full = _merge_series(portfolio_is.turnover, portfolio_oos.turnover)
+        costs_full = _merge_frames(portfolio_is.costs, portfolio_oos.costs)
+        gross_backtest_series[factor_name] = _series_to_points(gross_full)
+        net_backtest_series[factor_name] = _series_to_points(net_full)
+        turnover_series[factor_name] = _series_to_points(turnover_full)
+        cost_series[factor_name] = {
+            "is": _frame_to_records(portfolio_is.costs),
+            "oos": _frame_to_records(portfolio_oos.costs),
+            "full": _frame_to_records(costs_full),
+        }
+        long_only_metrics.append(
+            {
+                "factor_name": factor_name,
+                "annualized_return": round(annualized_return(net_full), 6),
+                "sharpe": round(sharpe_ratio(net_full), 6),
+                "max_drawdown": round(max_drawdown(net_full), 6),
+                "cumulative_cost": round(
+                    float(costs_full.get("total_cost", pd.Series(dtype=float)).sum()), 8
+                ),
+                "observation_count": int(len(net_full)),
+            }
+        )
+        tradability_diagnostics[factor_name] = _merge_portfolio_diagnostics(
+            portfolio_is, portfolio_oos
+        )
+
     state["metrics"] = metrics
     state["oos_metrics"] = oos_metrics
     state["backtest_series"] = backtest_series
+    state["gross_backtest_series"] = gross_backtest_series
+    state["net_backtest_series"] = net_backtest_series
+    state["turnover_series"] = turnover_series
+    state["cost_series"] = cost_series
+    state["long_only_metrics"] = long_only_metrics
+    state["tradability_diagnostics"] = tradability_diagnostics
 
     # Compute factor correlation matrix
     if len(factor_values) >= 2:
@@ -627,6 +718,62 @@ def _run_backtest(state: ResearchState, tracer: GraphEventTracer) -> ResearchSta
         state["_factor_correlation"] = {"labels": [], "values": []}
 
     return state
+
+
+def _run_portfolio_segment(
+    factor: pd.Series,
+    data: pd.DataFrame | None,
+    direction: str,
+    config: BacktestConfig,
+) -> PortfolioBacktestResult:
+    if data is None or data.empty:
+        empty_data = pd.DataFrame(
+            {"open": pd.Series(dtype=float)},
+            index=pd.MultiIndex.from_arrays([[], []], names=["symbol", "date"]),
+        )
+        empty_factor = pd.Series(dtype=float, index=empty_data.index)
+        return run_long_only_backtest(
+            empty_factor, empty_data, direction=direction, config=config
+        )
+    return run_long_only_backtest(factor, data, direction=direction, config=config)
+
+
+def _merge_frames(first: pd.DataFrame, second: pd.DataFrame) -> pd.DataFrame:
+    parts = [frame for frame in (first, second) if not frame.empty]
+    if not parts:
+        return pd.DataFrame()
+    merged = pd.concat(parts)
+    return merged[~merged.index.duplicated(keep="first")].sort_index()
+
+
+def _merge_portfolio_diagnostics(
+    is_result: PortfolioBacktestResult,
+    oos_result: PortfolioBacktestResult,
+) -> dict[str, Any]:
+    is_diagnostics = is_result.diagnostics
+    oos_diagnostics = oos_result.diagnostics
+    return {
+        "executable": bool(
+            is_diagnostics.get("executable", False)
+            or oos_diagnostics.get("executable", False)
+        ),
+        "missing_fields": sorted(
+            set(is_diagnostics.get("missing_fields", []))
+            | set(oos_diagnostics.get("missing_fields", []))
+        ),
+        "applied_rules": sorted(
+            set(is_diagnostics.get("applied_rules", []))
+            | set(oos_diagnostics.get("applied_rules", []))
+        ),
+        "blocked_buys": int(is_diagnostics.get("blocked_buys", 0))
+        + int(oos_diagnostics.get("blocked_buys", 0)),
+        "blocked_sells": int(is_diagnostics.get("blocked_sells", 0))
+        + int(oos_diagnostics.get("blocked_sells", 0)),
+        "empty_candidate_dates": int(is_diagnostics.get("empty_candidate_dates", 0))
+        + int(oos_diagnostics.get("empty_candidate_dates", 0)),
+        "is": is_diagnostics,
+        "oos": oos_diagnostics,
+    }
 
 
 def _split_is_oos(
@@ -781,6 +928,9 @@ def _generate_report(state: ResearchState, tracer: GraphEventTracer) -> Research
         backtest_assumptions=state.get("backtest_assumptions", {}),
         audit_trail=state.get("audit_trail", []),
         warnings=state.get("warnings", []),
+        long_only_metrics=state.get("long_only_metrics", []),
+        tradability_diagnostics=state.get("tradability_diagnostics", {}),
+        universe_diagnostics=state.get("universe_diagnostics", {}),
         limitations=[
             data_limitation,
             "正式研究需要使用合法、稳定、可复现的 A 股数据源。",
@@ -805,6 +955,12 @@ def _build_backtest_assumptions(
         "rebalance_frequency": "daily",
         "forward_return_period": "1 trading day",
         "transaction_cost_bps": 0,
+        "execution_mode": state.get("execution_mode", "next_open_to_next_open"),
+        "commission_bps": state.get("commission_bps", 3.0),
+        "stamp_duty_bps": state.get("stamp_duty_bps", 5.0),
+        "slippage_bps": state.get("slippage_bps", 5.0),
+        "exclude_st": state.get("exclude_st", True),
+        "min_listing_days": state.get("min_listing_days", 60),
         "adjustment": "fixture 模式使用确定性示例日线；AKShare 模式依赖公开接口返回的数据。",
         "universe_note": "当前股票池最多取前 20 个标的用于可复现实验演示。",
         "oos_split_date": oos_date,

@@ -65,6 +65,13 @@ data_provider: fixture | akshare
 cache_enabled: enable local daily-bar CSV cache
 fallback_to_fixture: use fixture data if live provider fails
 allow_live_fetch: explicit public URL fetch opt-in
+execution_mode: next_open_to_next_open
+commission_bps: bilateral commission, default 3
+stamp_duty_bps: sell-side stamp duty, default 5
+slippage_bps: bilateral slippage, default 5
+exclude_st: exclude ST stocks when the field is available
+min_listing_days: minimum listing age, default 60
+historical_universe_id: optional id returned by POST /universes
 ```
 
 Response fields:
@@ -78,12 +85,34 @@ metrics
 oos_metrics
 factor_correlation
 backtest_series
+gross_backtest_series
+net_backtest_series
+turnover_series
+cost_series
+long_only_metrics
+tradability_diagnostics
+universe_diagnostics
 report_markdown
 artifacts
 source_diagnostics
 backtest_assumptions
 audit_trail
 ```
+
+## Upload Historical Universe
+
+```http
+POST /universes
+```
+
+Upload a CSV multipart field named `file` with the exact columns:
+
+```csv
+date,symbol,in_universe
+2024-01-02,000001,true
+```
+
+The response contains an opaque `historical_universe_id`. Research runs accept that id only; arbitrary filesystem paths and unknown ids return `422`.
 
 ## List Runs
 
@@ -138,6 +167,8 @@ report.md
 metrics.json
 oos_metrics.json
 backtest_series.json
+portfolio_backtest.json
+backtest_diagnostics.json
 factor_correlation.json
 factors.json
 bundle.json

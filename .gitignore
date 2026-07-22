@@ -16,3 +16,4 @@ data_cache/
 logs/
 demo_artifacts/*.png
 run_artifacts/
+historical_universes/
