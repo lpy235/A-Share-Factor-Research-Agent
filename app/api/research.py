@@ -1,7 +1,8 @@
+import threading
 from uuid import uuid4
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException
-from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -50,6 +51,7 @@ class ResearchRunRequest(BaseModel):
     historical_universe_id: str | None = Field(
         default=None, pattern=r"^universe_[0-9a-f]{12}$"
     )
+    async_run: bool = False
 
 
 @router.post("/runs")
@@ -74,62 +76,39 @@ def create_research_run(request: ResearchRunRequest):
         run_id,
         "CreateRun",
         "run_started",
-        {
-            "research_topic": request.research_topic,
-            "source_mode": request.source_mode,
-            "document_ids": request.document_ids,
-            "max_sources": request.max_sources,
-            "allow_live_fetch": request.allow_live_fetch,
-            "retrieval_mode": request.retrieval_mode,
-            "embedding_dim": request.embedding_dim,
-            "extraction_mode": request.extraction_mode,
-            "enable_llm_extraction": request.enable_llm_extraction,
-            "llm_retry_count": request.llm_retry_count,
-            "llm_config": llm_config_summary,
-            "data_provider": request.data_provider,
-            "cache_enabled": request.cache_enabled,
-            "fallback_to_fixture": request.fallback_to_fixture,
-            "execution_mode": request.execution_mode,
-            "commission_bps": request.commission_bps,
-            "stamp_duty_bps": request.stamp_duty_bps,
-            "slippage_bps": request.slippage_bps,
-            "exclude_st": request.exclude_st,
-            "min_listing_days": request.min_listing_days,
-            "historical_universe_id": request.historical_universe_id,
-        },
+        _build_run_started_payload(request, llm_config_summary),
     )
+
+    if request.async_run:
+        run_store.save_run(
+            run_id,
+            research_topic=request.research_topic,
+            status="running",
+            config=request_config,
+            response={"run_id": run_id, "status": "running"},
+        )
+        thread = threading.Thread(
+            target=_execute_run_async,
+            args=(run_id, request, document_paths, llm_config_summary, request_config),
+            daemon=True,
+        )
+        thread.start()
+        return {"run_id": run_id, "status": "running"}
+
+    return _execute_and_build_response(
+        run_id, request, document_paths, llm_config_summary, request_config
+    )
+
+
+def _execute_and_build_response(
+    run_id: str,
+    request: ResearchRunRequest,
+    document_paths: list[str],
+    llm_config_summary: dict,
+    request_config: dict,
+) -> dict:
     state = run_research_workflow(
-        {
-            "run_id": run_id,
-            "research_topic": request.research_topic,
-            "source_mode": request.source_mode,
-            "universe": request.universe,
-            "start_date": request.start_date,
-            "end_date": request.end_date,
-            "document_paths": document_paths,
-            "max_chunks": request.max_chunks,
-            "max_sources": request.max_sources,
-            "allow_live_fetch": request.allow_live_fetch,
-            "retrieval_mode": request.retrieval_mode,
-            "embedding_dim": request.embedding_dim,
-            "extraction_mode": request.extraction_mode,
-            "enable_llm_extraction": request.enable_llm_extraction,
-            "llm_retry_count": request.llm_retry_count,
-            "llm_config": request.llm_config,
-            "llm_config_summary": llm_config_summary,
-            "data_provider": request.data_provider,
-            "cache_enabled": request.cache_enabled,
-            "fallback_to_fixture": request.fallback_to_fixture,
-            "market_data_cache_dir": request.market_data_cache_dir,
-            "event_db_path": DB_PATH,
-            "execution_mode": request.execution_mode,
-            "commission_bps": request.commission_bps,
-            "stamp_duty_bps": request.stamp_duty_bps,
-            "slippage_bps": request.slippage_bps,
-            "exclude_st": request.exclude_st,
-            "min_listing_days": request.min_listing_days,
-            "historical_universe_id": request.historical_universe_id,
-        }
+        _build_workflow_state(run_id, request, document_paths, llm_config_summary)
     )
     event_store.append(
         run_id,
@@ -191,6 +170,100 @@ def create_research_run(request: ResearchRunRequest):
         response=response,
     )
     return response
+
+
+def _execute_run_async(
+    run_id: str,
+    request: ResearchRunRequest,
+    document_paths: list[str],
+    llm_config_summary: dict,
+    request_config: dict,
+) -> None:
+    try:
+        _execute_and_build_response(
+            run_id, request, document_paths, llm_config_summary, request_config
+        )
+    except Exception as exc:
+        error_message = str(exc)
+        event_store.append(
+            run_id,
+            "CreateRun",
+            "run_failed",
+            {"error": error_message},
+        )
+        run_store.save_run(
+            run_id,
+            research_topic=request.research_topic,
+            status="failed",
+            config=request_config,
+            response={"run_id": run_id, "status": "failed", "error": error_message},
+        )
+
+
+def _build_workflow_state(
+    run_id: str,
+    request: ResearchRunRequest,
+    document_paths: list[str],
+    llm_config_summary: dict,
+) -> dict:
+    return {
+        "run_id": run_id,
+        "research_topic": request.research_topic,
+        "source_mode": request.source_mode,
+        "universe": request.universe,
+        "start_date": request.start_date,
+        "end_date": request.end_date,
+        "document_paths": document_paths,
+        "max_chunks": request.max_chunks,
+        "max_sources": request.max_sources,
+        "allow_live_fetch": request.allow_live_fetch,
+        "retrieval_mode": request.retrieval_mode,
+        "embedding_dim": request.embedding_dim,
+        "extraction_mode": request.extraction_mode,
+        "enable_llm_extraction": request.enable_llm_extraction,
+        "llm_retry_count": request.llm_retry_count,
+        "llm_config": request.llm_config,
+        "llm_config_summary": llm_config_summary,
+        "data_provider": request.data_provider,
+        "cache_enabled": request.cache_enabled,
+        "fallback_to_fixture": request.fallback_to_fixture,
+        "market_data_cache_dir": request.market_data_cache_dir,
+        "event_db_path": DB_PATH,
+        "execution_mode": request.execution_mode,
+        "commission_bps": request.commission_bps,
+        "stamp_duty_bps": request.stamp_duty_bps,
+        "slippage_bps": request.slippage_bps,
+        "exclude_st": request.exclude_st,
+        "min_listing_days": request.min_listing_days,
+        "historical_universe_id": request.historical_universe_id,
+    }
+
+
+def _build_run_started_payload(request: ResearchRunRequest, llm_config_summary: dict) -> dict:
+    return {
+        "research_topic": request.research_topic,
+        "source_mode": request.source_mode,
+        "document_ids": request.document_ids,
+        "max_sources": request.max_sources,
+        "allow_live_fetch": request.allow_live_fetch,
+        "retrieval_mode": request.retrieval_mode,
+        "embedding_dim": request.embedding_dim,
+        "extraction_mode": request.extraction_mode,
+        "enable_llm_extraction": request.enable_llm_extraction,
+        "llm_retry_count": request.llm_retry_count,
+        "llm_config": llm_config_summary,
+        "data_provider": request.data_provider,
+        "cache_enabled": request.cache_enabled,
+        "fallback_to_fixture": request.fallback_to_fixture,
+        "execution_mode": request.execution_mode,
+        "commission_bps": request.commission_bps,
+        "stamp_duty_bps": request.stamp_duty_bps,
+        "slippage_bps": request.slippage_bps,
+        "exclude_st": request.exclude_st,
+        "min_listing_days": request.min_listing_days,
+        "historical_universe_id": request.historical_universe_id,
+        "async_run": request.async_run,
+    }
 
 
 def _summarize_llm_config(config: dict) -> dict:

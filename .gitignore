@@ -17,3 +17,10 @@ logs/
 demo_artifacts/*.png
 run_artifacts/
 historical_universes/
+
+# 本地服务开关产物
+.serve.pid
+.serve.log
+
+# WorkBuddy 本地工作记忆
+.workbuddy/

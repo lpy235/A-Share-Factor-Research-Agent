@@ -11,7 +11,15 @@ from app.agents.schemas import FactorHypothesis
 from app.agents.state import ResearchState
 from app.backtest.correlation import compute_factor_correlation_matrix
 from app.backtest.config import BacktestConfig
-from app.backtest.metrics import annualized_return, max_drawdown, sharpe_ratio
+from app.backtest.metrics import (
+    annualized_return,
+    beta,
+    excess_return,
+    information_ratio,
+    max_drawdown,
+    sharpe_ratio,
+    tracking_error,
+)
 from app.backtest.portfolio import PortfolioBacktestResult, run_long_only_backtest
 from app.backtest.selector import FactorScore, FactorSelector
 from app.backtest.single_factor import (
@@ -631,6 +639,7 @@ def _run_backtest(state: ResearchState, tracer: GraphEventTracer) -> ResearchSta
         exclude_st=state.get("exclude_st", True),
         min_listing_days=state.get("min_listing_days", 60),
     )
+    benchmark_returns = _compute_benchmark_returns(data)
 
     for factor_name, factor in factor_values.items():
         # ------- In-sample -------
@@ -705,6 +714,7 @@ def _run_backtest(state: ResearchState, tracer: GraphEventTracer) -> ResearchSta
             "oos": _frame_to_records(portfolio_oos.costs),
             "full": _frame_to_records(costs_full),
         }
+        factor_excess = excess_return(net_full, benchmark_returns)
         long_only_metrics.append(
             {
                 "factor_name": factor_name,
@@ -715,6 +725,11 @@ def _run_backtest(state: ResearchState, tracer: GraphEventTracer) -> ResearchSta
                     float(costs_full.get("total_cost", pd.Series(dtype=float)).sum()), 8
                 ),
                 "observation_count": int(len(net_full)),
+                "benchmark_beta": round(beta(net_full, benchmark_returns), 6),
+                "tracking_error": round(tracking_error(factor_excess), 6),
+                "information_ratio": round(information_ratio(factor_excess), 6),
+                "excess_annualized_return": round(annualized_return(factor_excess), 6),
+                "relative_max_drawdown": round(max_drawdown(factor_excess), 6),
             }
         )
         tradability_diagnostics[factor_name] = _merge_portfolio_diagnostics(
@@ -760,6 +775,16 @@ def _run_portfolio_segment(
             empty_factor, empty_data, direction=direction, config=config
         )
     return run_long_only_backtest(factor, data, direction=direction, config=config)
+
+
+def _compute_benchmark_returns(data: pd.DataFrame) -> pd.Series:
+    """Equal-weight open-to-open daily returns of the data universe as benchmark."""
+    if "open" not in data.columns:
+        return pd.Series(dtype=float)
+    opens = data["open"].unstack(level="symbol")
+    daily_returns = opens.pct_change()
+    benchmark = daily_returns.mean(axis=1)
+    return benchmark.dropna()
 
 
 def _merge_frames(first: pd.DataFrame, second: pd.DataFrame) -> pd.DataFrame:
@@ -989,6 +1014,8 @@ def _build_backtest_assumptions(
         "universe_note": "当前股票池最多取前 20 个标的用于可复现实验演示。",
         "oos_split_date": oos_date,
         "oos_split_ratio": "前 70% 样本内 (IS)，后 30% 样本外 (OOS)",
+        "benchmark": "universe_equal_weight_open_to_open",
+        "benchmark_note": "基准为当前股票池等权 open-to-open 日收益序列，用于计算超额收益、Beta、信息比与跟踪误差；正式研究应替换为沪深300等真实指数。",
         "bias_notes": [
             "fixture 数据不代表真实 A 股全市场表现。",
             "真实研究需要处理停牌、涨跌停、复权、ST、退市和生存者偏差。",

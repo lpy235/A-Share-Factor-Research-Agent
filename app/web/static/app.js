@@ -71,10 +71,15 @@ form.addEventListener("submit", async (event) => {
     const documentIds = await uploadDocumentIfNeeded();
     const payload = buildRunPayload(documentIds);
     renderRunConfig(payload);
-    const run = await postJson("/research/runs", payload);
-    currentRun = run;
-    renderRun(run);
-    await loadTrace(run.run_id);
+    const started = await postJson("/research/runs", payload);
+    runIdEl.textContent = started.run_id;
+    const result = await pollRunStatus(started.run_id);
+    if (result.status === "failed") {
+      throw new Error(result.error || "工作流执行失败");
+    }
+    currentRun = result;
+    renderRun(result);
+    await loadTrace(started.run_id);
     await loadRunHistory();
     setStatus("研究运行完成", "下方可以查看入选因子、回测指标、研究报告和执行追踪。", "done");
   } catch (error) {
@@ -216,6 +221,7 @@ function buildRunPayload(documentIds) {
     slippage_bps: numberOf("#slippage-bps"),
     exclude_st: checked("#exclude-st"),
     min_listing_days: numberOf("#min-listing-days"),
+    async_run: true,
   };
 }
 
@@ -312,6 +318,30 @@ async function postJson(url, payload) {
     throw new Error(await responseText(response, "请求失败"));
   }
   return response.json();
+}
+
+async function pollRunStatus(runId, intervalMs = 1000, timeoutMs = 180000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      await loadTrace(runId);
+    } catch {
+      // trace 加载失败不阻断轮询
+    }
+    const response = await fetch(`/runs/${runId}`);
+    if (!response.ok) {
+      throw new Error("无法获取运行状态");
+    }
+    const body = await response.json();
+    if (body.status === "completed") {
+      return body.response;
+    }
+    if (body.status === "failed") {
+      return { status: "failed", error: (body.response || {}).error };
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  throw new Error("运行超时，请稍后在历史实验中查看结果。");
 }
 
 async function loadTrace(runId) {
@@ -580,8 +610,8 @@ function renderLongOnlyMetrics(metrics) {
     ? metrics.map((metric) => `
         <div class="diagnostic-row">
           <strong>${escapeHtml(metric.factor_name)}</strong>
-          <span>年化 ${formatMetric(metric.annualized_return)} · Sharpe ${formatMetric(metric.sharpe)}</span>
-          <small>回撤 ${formatMetric(metric.max_drawdown)} · 累计成本 ${formatMetric(metric.cumulative_cost)}</small>
+          <span>年化 ${formatMetric(metric.annualized_return)} · 超额 ${formatMetric(metric.excess_annualized_return)} · Sharpe ${formatMetric(metric.sharpe)}</span>
+          <small>Beta ${formatMetric(metric.benchmark_beta)} · IR ${formatMetric(metric.information_ratio)} · 跟踪误差 ${formatMetric(metric.tracking_error)} · 回撤 ${formatMetric(metric.max_drawdown)} · 相对回撤 ${formatMetric(metric.relative_max_drawdown)}</small>
         </div>
       `).join("")
     : "暂无组合指标。";

@@ -156,6 +156,9 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 - [x] Compileall, Ruff, JavaScript syntax, diff-check, and API smoke verification passed.
 - [x] Dashboard LLM provider/model/Base URL/API Key configuration restored with masked run-history persistence.
 - [x] LLM configuration regression verified with 142 tests, 5/5 eval, browser interaction, and zero console errors.
+- [x] Async research runs: POST /research/runs accepts async_run=true, returns immediately, background worker writes run_completed/run_failed events; frontend polls GET /runs/{id}.
+- [x] Backtest benchmark comparison: long_only_metrics now include benchmark_beta, information_ratio, tracking_error, excess_annualized_return, relative_max_drawdown; report adds benchmark columns; assumptions record benchmark source.
+- [x] Full pytest (143), eval (5/5), compileall, ruff verification passed after async + benchmark changes.
 
 ## In Progress
 

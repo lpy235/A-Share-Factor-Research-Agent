@@ -84,19 +84,26 @@ def render_report(
 
     if long_only_metrics:
         lines.extend(["", "### 可执行多头组合"])
-        lines.append("| 因子 | 年化收益 | Sharpe | 最大回撤 | 累计成本 |")
-        lines.append("| --- | ---: | ---: | ---: | ---: |")
+        lines.append("| 因子 | 年化收益 | 超额年化 | Beta | IR | 跟踪误差 | 最大回撤 | 相对回撤 | 累计成本 |")
+        lines.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
         for metric in long_only_metrics:
             lines.append(
                 "| "
                 f"{metric.get('factor_name', '')} | "
                 f"{_fmt(metric.get('annualized_return'))} | "
-                f"{_fmt(metric.get('sharpe'))} | "
+                f"{_fmt(metric.get('excess_annualized_return'))} | "
+                f"{_fmt(metric.get('benchmark_beta'))} | "
+                f"{_fmt(metric.get('information_ratio'))} | "
+                f"{_fmt(metric.get('tracking_error'))} | "
                 f"{_fmt(metric.get('max_drawdown'))} | "
+                f"{_fmt(metric.get('relative_max_drawdown'))} | "
                 f"{_fmt(metric.get('cumulative_cost'))} |"
             )
         lines.append("- 组合时序：t 日收盘计算，t+1 日开盘成交，持有至 t+2 日开盘。")
         lines.append("- G5-G1 仅为研究诊断，不代表普通 A 股账户可执行的自由卖空策略。")
+        benchmark_note = backtest_assumptions.get("benchmark_note")
+        if benchmark_note:
+            lines.append(f"- 基准：{benchmark_note}")
 
     corr_labels = factor_correlation.get("labels", [])
     corr_values = factor_correlation.get("values", [])
@@ -123,6 +130,7 @@ def render_report(
         lines.append(f"- 滑点：{backtest_assumptions.get('slippage_bps')} bps（买卖双边）")
         lines.append(f"- 样本内/外切分：{backtest_assumptions.get('oos_split_ratio')}")
         lines.append(f"- OOS 起始日期：{backtest_assumptions.get('oos_split_date')}")
+        lines.append(f"- 基准：{backtest_assumptions.get('benchmark', '未指定')}")
         for item in backtest_assumptions.get("bias_notes", []):
             lines.append(f"- {item}")
     for factor_name, diagnostics in tradability_diagnostics.items():

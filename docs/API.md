@@ -72,6 +72,7 @@ slippage_bps: bilateral slippage, default 5
 exclude_st: exclude ST stocks when the field is available
 min_listing_days: minimum listing age, default 60
 historical_universe_id: optional id returned by POST /universes
+async_run: if true, return immediately with {run_id, status:"running"} and run the workflow in a background worker; poll GET /runs/{run_id} until status is completed or failed (default false, synchronous)
 ```
 
 Response fields:

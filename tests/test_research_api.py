@@ -1,3 +1,5 @@
+import time
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -303,3 +305,44 @@ def test_research_api_accepts_runtime_llm_config_without_persisting_secret():
     }
     assert secret not in response.text
     assert secret not in client.get(f"/runs/{body['run_id']}").text
+
+
+def test_research_api_supports_async_run_with_polling():
+    client = TestClient(app)
+
+    response = client.post(
+        "/research/runs",
+        json={
+            "research_topic": "A股量价类动量因子",
+            "source_mode": "auto",
+            "max_sources": 2,
+            "allow_live_fetch": False,
+            "async_run": True,
+        },
+    )
+
+    assert response.status_code == 200
+    started = response.json()
+    assert started["status"] == "running"
+    run_id = started["run_id"]
+
+    run = None
+    for _ in range(120):
+        run = client.get(f"/runs/{run_id}").json()
+        if run["status"] in ("completed", "failed"):
+            break
+        time.sleep(0.5)
+
+    assert run is not None
+    assert run["status"] == "completed", f"async run did not complete: {run.get('response')}"
+    result = run["response"]
+    assert "volume_price_momentum" in result["selected_factors"]
+    assert result["report_markdown"]
+    assert result["artifacts"]
+
+    events = client.get(f"/runs/{run_id}/events").json()["events"]
+    assert any(event["event_type"] == "run_started" for event in events)
+    assert any(event["event_type"] == "run_completed" for event in events)
+
+    runs_response = client.get("/runs")
+    assert any(item["run_id"] == run_id for item in runs_response.json()["runs"])
