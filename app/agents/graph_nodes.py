@@ -9,6 +9,7 @@ from app.agents.graph_events import GraphEventTracer, run_traced_node
 from app.agents.nodes import extract_hypotheses_from_chunks, generate_factor_specs
 from app.agents.schemas import FactorHypothesis
 from app.agents.state import ResearchState
+from app.backtest.combination import combine_factor_values
 from app.backtest.correlation import compute_factor_correlation_matrix
 from app.backtest.config import BacktestConfig
 from app.backtest.metrics import (
@@ -27,6 +28,7 @@ from app.backtest.single_factor import (
     compute_rank_ic,
     grouped_forward_returns,
 )
+from app.backtest.walk_forward import walk_forward_ic
 from app.data.fixture_provider import FixtureAshareDataProvider
 from app.data.provider_factory import CachedAshareDataProvider, ProviderSelection, select_data_provider
 from app.factor.dsl import FactorSpec
@@ -675,6 +677,7 @@ def _run_backtest(state: ResearchState, tracer: GraphEventTracer) -> ResearchSta
         )
         equity_full = (1 + merged_long_short.fillna(0)).cumprod()
         drawdown_full = equity_full / equity_full.cummax() - 1
+        walk_forward = walk_forward_ic(merged_rank_ic)
 
         backtest_series[factor_name] = {
             "rank_ic": _series_to_points(merged_rank_ic),
@@ -691,10 +694,13 @@ def _run_backtest(state: ResearchState, tracer: GraphEventTracer) -> ResearchSta
             "rank_ic_oos": _series_to_points(
                 oos_result.get("rank_ic") if oos_result.get("rank_ic") is not None else pd.Series(dtype=float)
             ),
+            "walk_forward": walk_forward,
         }
 
         metric["mean_rank_ic_oos"] = round(_safe_float(ic_oos), 6)
         metric["ic_decay_ratio"] = round(ic_decay, 4) if ic_decay is not None else None
+        metric["walk_forward_positive_ratio"] = walk_forward["stability"].get("positive_ratio")
+        metric["walk_forward_sign_consistent"] = walk_forward["stability"].get("sign_consistent")
 
         portfolio_is = _run_portfolio_segment(
             factor_is, data_is, factor_directions.get(factor_name, "unknown"), portfolio_config
@@ -745,6 +751,10 @@ def _run_backtest(state: ResearchState, tracer: GraphEventTracer) -> ResearchSta
     state["cost_series"] = cost_series
     state["long_only_metrics"] = long_only_metrics
     state["tradability_diagnostics"] = tradability_diagnostics
+    state["_benchmark_returns"] = benchmark_returns
+    state["_portfolio_config"] = portfolio_config
+    state["_data_is"] = data_is
+    state["_data_oos"] = data_oos
 
     # Compute factor correlation matrix
     if len(factor_values) >= 2:
@@ -940,6 +950,7 @@ def _select_factors(state: ResearchState, tracer: GraphEventTracer) -> ResearchS
     )
     selected = selector.select(selected_input)
     state["selected_factors"] = [item.factor_name for item in selected]
+    state["combination_backtest"] = _build_combination_backtest(state)
 
     # Log rejection reasons
     rejection_info = selector.rejection_reasons(selected_input)
@@ -947,6 +958,54 @@ def _select_factors(state: ResearchState, tracer: GraphEventTracer) -> ResearchS
         warnings.append(f"Factor [{factor_name}] rejected: {'; '.join(reasons)}")
     state["warnings"] = warnings
     return state
+
+
+def _build_combination_backtest(state: ResearchState) -> dict[str, Any]:
+    """Build equal-weight / IC-weight / risk-parity combination backtests
+    over the selected factors. Runs after SelectFactorsNode."""
+    selected = state.get("selected_factors", [])
+    factor_values = state.get("_factor_values", {})
+    if not selected or not factor_values:
+        return {}
+    metrics = state.get("metrics", [])
+    benchmark_returns = state.get("_benchmark_returns", pd.Series(dtype=float))
+    portfolio_config = state.get("_portfolio_config")
+    data_is = state.get("_data_is")
+    data_oos = state.get("_data_oos")
+    if portfolio_config is None:
+        return {}
+    ic_weights = {m.get("factor_name"): m.get("mean_rank_ic", 0.0) for m in metrics}
+    combination_backtest: dict[str, Any] = {}
+    for method in ("equal_weight", "ic_weight", "risk_parity"):
+        combined = combine_factor_values(
+            factor_values, selected, method=method, ic_weights=ic_weights
+        )
+        if combined.empty:
+            continue
+        combined_is = (
+            _clip_series_to_data(combined, data_is) if data_is is not None else combined
+        )
+        combined_oos = (
+            _clip_series_to_data(combined, data_oos) if data_oos is not None else combined
+        )
+        port_is = _run_portfolio_segment(combined_is, data_is, "positive", portfolio_config)
+        port_oos = _run_portfolio_segment(combined_oos, data_oos, "positive", portfolio_config)
+        net_full = _merge_series(port_is.net_returns, port_oos.net_returns)
+        excess = excess_return(net_full, benchmark_returns)
+        combination_backtest[method] = {
+            "method": method,
+            "factor_count": len([name for name in selected if name in factor_values]),
+            "net_series": _series_to_points(net_full),
+            "annualized_return": round(annualized_return(net_full), 6),
+            "sharpe": round(sharpe_ratio(net_full), 6),
+            "max_drawdown": round(max_drawdown(net_full), 6),
+            "benchmark_beta": round(beta(net_full, benchmark_returns), 6),
+            "information_ratio": round(information_ratio(excess), 6),
+            "tracking_error": round(tracking_error(excess), 6),
+            "excess_annualized_return": round(annualized_return(excess), 6),
+            "observation_count": int(len(net_full)),
+        }
+    return combination_backtest
 
 
 def _generate_report(state: ResearchState, tracer: GraphEventTracer) -> ResearchState:
@@ -980,6 +1039,7 @@ def _generate_report(state: ResearchState, tracer: GraphEventTracer) -> Research
         long_only_metrics=state.get("long_only_metrics", []),
         tradability_diagnostics=state.get("tradability_diagnostics", {}),
         universe_diagnostics=state.get("universe_diagnostics", {}),
+        combination_backtest=state.get("combination_backtest", {}),
         limitations=[
             data_limitation,
             "正式研究需要使用合法、稳定、可复现的 A 股数据源。",

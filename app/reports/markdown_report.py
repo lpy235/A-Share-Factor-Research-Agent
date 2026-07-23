@@ -16,8 +16,10 @@ def render_report(
     long_only_metrics: list[dict[str, Any]] | None = None,
     tradability_diagnostics: dict[str, Any] | None = None,
     universe_diagnostics: dict[str, Any] | None = None,
+    combination_backtest: dict[str, Any] | None = None,
 ) -> str:
     oos_metrics = oos_metrics or []
+    combination_backtest = combination_backtest or {}
     factor_correlation = factor_correlation or {}
     source_diagnostics = source_diagnostics or {}
     backtest_assumptions = backtest_assumptions or {}
@@ -52,8 +54,8 @@ def render_report(
     if not metrics:
         lines.append("- 暂无可展示指标。")
     else:
-        lines.append("| 因子 | IS Rank IC | OOS Rank IC | ICIR | IC 衰减 | 覆盖率 | 缺失率 | Sharpe |")
-        lines.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
+        lines.append("| 因子 | IS Rank IC | OOS Rank IC | ICIR | IC 衰减 | WF 正IC率 | WF 一致 | 覆盖率 | 缺失率 | Sharpe |")
+        lines.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
         for metric in metrics:
             lines.append(
                 "| "
@@ -62,6 +64,8 @@ def render_report(
                 f"{_fmt(metric.get('mean_rank_ic_oos'))} | "
                 f"{_fmt(metric.get('icir'))} | "
                 f"{_fmt(metric.get('ic_decay_ratio'))} | "
+                f"{_fmt(metric.get('walk_forward_positive_ratio'))} | "
+                f"{'是' if metric.get('walk_forward_sign_consistent') else '否'} | "
                 f"{_fmt(metric.get('coverage_ratio'))} | "
                 f"{_fmt(metric.get('missing_ratio'))} | "
                 f"{_fmt(metric.get('sharpe'))} |"
@@ -104,6 +108,26 @@ def render_report(
         benchmark_note = backtest_assumptions.get("benchmark_note")
         if benchmark_note:
             lines.append(f"- 基准：{benchmark_note}")
+
+    if combination_backtest:
+        lines.extend(["", "### 多因子组合优化"])
+        lines.append("| 方法 | 因子数 | 年化收益 | 超额年化 | Beta | IR | 跟踪误差 | 最大回撤 | Sharpe |")
+        lines.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
+        method_labels = {"equal_weight": "等权", "ic_weight": "IC 加权", "risk_parity": "风险平价"}
+        for method, item in combination_backtest.items():
+            lines.append(
+                "| "
+                f"{method_labels.get(method, method)} | "
+                f"{item.get('factor_count', 0)} | "
+                f"{_fmt(item.get('annualized_return'))} | "
+                f"{_fmt(item.get('excess_annualized_return'))} | "
+                f"{_fmt(item.get('benchmark_beta'))} | "
+                f"{_fmt(item.get('information_ratio'))} | "
+                f"{_fmt(item.get('tracking_error'))} | "
+                f"{_fmt(item.get('max_drawdown'))} | "
+                f"{_fmt(item.get('sharpe'))} |"
+            )
+        lines.append("- 组合因子经截面 z-score 标准化后加权；入选因子越多组合优化越有意义。")
 
     corr_labels = factor_correlation.get("labels", [])
     corr_values = factor_correlation.get("values", [])

@@ -159,6 +159,9 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 - [x] Async research runs: POST /research/runs accepts async_run=true, returns immediately, background worker writes run_completed/run_failed events; frontend polls GET /runs/{id}.
 - [x] Backtest benchmark comparison: long_only_metrics now include benchmark_beta, information_ratio, tracking_error, excess_annualized_return, relative_max_drawdown; report adds benchmark columns; assumptions record benchmark source.
 - [x] Full pytest (143), eval (5/5), compileall, ruff verification passed after async + benchmark changes.
+- [x] Walk-forward stability: rolling-window IC analysis (5 windows) with positive_ratio / sign_consistent / cross-window stats; report adds WF columns.
+- [x] Multi-factor combination optimization: equal_weight / ic_weight / risk_parity composite factors backtested with benchmark-relative metrics; report adds combination section.
+- [x] Full pytest (151), eval (5/5), compileall, ruff verification passed after walk-forward + combination changes.
 
 ## In Progress
 

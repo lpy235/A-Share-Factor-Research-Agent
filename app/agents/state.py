@@ -55,6 +55,10 @@ class ResearchState(TypedDict, total=False):
     _factor_values: dict[str, Any]
     _oos_split_date: str
     _factor_correlation: dict[str, Any]
+    _benchmark_returns: Any
+    _portfolio_config: Any
+    _data_is: Any
+    _data_oos: Any
     oos_metrics: list[dict]
     gross_backtest_series: dict
     net_backtest_series: dict
@@ -63,3 +67,4 @@ class ResearchState(TypedDict, total=False):
     long_only_metrics: list[dict]
     tradability_diagnostics: dict
     universe_diagnostics: dict
+    combination_backtest: dict

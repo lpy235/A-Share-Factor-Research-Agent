@@ -58,6 +58,9 @@ def test_research_api_returns_v2_compatible_response_and_node_trace():
     assert body["source_diagnostics"]["accepted_count"] >= 1
     assert body["backtest_assumptions"]["universe"] == "CSI300"
     assert body["audit_trail"]
+    assert "walk_forward" in body["backtest_series"]["volume_price_momentum"]
+    assert "walk_forward_positive_ratio" in body["metrics"][0]
+    assert body["combination_backtest"]
     artifact_names = {item["name"] for item in body["artifacts"]}
     assert {
         "report.md",

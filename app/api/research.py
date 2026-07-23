@@ -161,6 +161,7 @@ def _execute_and_build_response(
         "source_diagnostics": state.get("source_diagnostics", {}),
         "backtest_assumptions": state.get("backtest_assumptions", {}),
         "audit_trail": state.get("audit_trail", []),
+        "combination_backtest": state.get("combination_backtest", {}),
     }
     run_store.save_run(
         run_id,

@@ -98,6 +98,7 @@ artifacts
 source_diagnostics
 backtest_assumptions
 audit_trail
+combination_backtest
 ```
 
 ## Upload Historical Universe
