@@ -70,6 +70,19 @@ class MarketDataStore:
         filtered = bars.loc[bars["trade_date"].between(start, end)].copy()
         return filtered.sort_values(["trade_date", "symbol"], ignore_index=True)
 
+    def read_effective_raw_daily_bars(
+        self, catalog, data_version: str, start_date: str, end_date: str
+    ) -> pd.DataFrame:
+        """Read a published child version together with all of its parent deltas."""
+        version_chain = self._version_chain(catalog, data_version)
+        frames = [self.read_raw_daily_bars(version_id, start_date, end_date) for version_id in version_chain]
+        frames = [frame for frame in frames if not frame.empty]
+        if not frames:
+            return pd.DataFrame(columns=(*RAW_DAILY_BAR_COLUMNS, *LINEAGE_COLUMNS))
+        merged = pd.concat(frames, ignore_index=True)
+        merged = merged.drop_duplicates(["symbol", "trade_date"], keep="last")
+        return merged.sort_values(["trade_date", "symbol"], ignore_index=True)
+
     def write_security_master(
         self, frame: pd.DataFrame, *, data_version: str, source: str
     ) -> Path:
@@ -167,6 +180,20 @@ class MarketDataStore:
             raise ValueError("data_version is required")
         if not source.strip():
             raise ValueError("source is required")
+
+    @staticmethod
+    def _version_chain(catalog, data_version: str) -> list[str]:
+        chain: list[str] = []
+        seen: set[str] = set()
+        current = data_version
+        while current:
+            if current in seen:
+                raise ValueError(f"data-version manifest cycle detected: {current}")
+            seen.add(current)
+            chain.append(current)
+            manifest = catalog.get_manifest(current)
+            current = manifest.get("manifest", {}).get("parent_version_id")
+        return list(reversed(chain))
 
 
 def _part_name() -> str:

@@ -257,7 +257,7 @@ Expected: FAIL because `DailyUpdateService` does not exist.
 
 - [ ] **Step 3: Implement one-version-per-successful-update semantics**
 
-Current status: child-version creation, non-trading-day skip, incomplete-draft behavior and idempotency are complete. Parent-partition chain reads and production source calendar integration remain.
+Current status: child-version creation, non-trading-day skip, incomplete-draft behavior, idempotency and parent-chain reads are complete. Production source calendar integration and operator commands remain.
 
 Read the latest published version, obtain the next trading date from the versioned calendar, ingest only that date's raw bars and events, run the same quality gates, write a child manifest referencing unchanged parent partitions, then publish the child version atomically.
 

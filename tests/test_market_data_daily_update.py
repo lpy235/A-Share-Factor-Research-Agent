@@ -59,6 +59,27 @@ def test_daily_update_publishes_child_once_and_is_idempotent(tmp_path):
     assert source.fetch_calls == 1
 
 
+def test_effective_version_read_merges_parent_history_and_child_delta(tmp_path):
+    catalog = DataCatalog(tmp_path)
+    store = MarketDataStore(tmp_path)
+    parent_draft = catalog.create_draft(source="fixture", as_of_date="2020-01-01")
+    store.write_raw_daily_bars(
+        DailySource().fetch_daily_bars(["000001.SZ"], "2020-01-01", "2020-01-01"),
+        data_version=parent_draft.version_id,
+        source="fixture",
+    )
+    parent = catalog.publish(parent_draft.version_id, manifest={"tables": {}})
+    child = DailyUpdateService(catalog, store, DailySource(), QualityGateService(catalog)).run(
+        "2020-01-02", parent.version_id
+    )
+
+    bars = store.read_effective_raw_daily_bars(
+        catalog, child.data_version, "2020-01-01", "2020-01-02"
+    )
+
+    assert list(bars["trade_date"].dt.strftime("%Y-%m-%d")) == ["2020-01-01", "2020-01-02"]
+
+
 def test_daily_update_keeps_incomplete_data_as_draft(tmp_path):
     catalog = DataCatalog(tmp_path)
     source = DailySource(has_bars=False)
