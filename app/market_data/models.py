@@ -37,3 +37,12 @@ class IngestRun:
     @property
     def completed_symbol_count(self) -> int:
         return self.next_symbol_index
+
+
+@dataclass(frozen=True)
+class IngestError:
+    ingest_run_id: str
+    symbol: str
+    error_message: str
+    attempt_count: int
+    recorded_at: str

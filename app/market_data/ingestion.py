@@ -9,10 +9,15 @@ from app.market_data.store import MarketDataStore
 class BackfillService:
     """Bounded, resumable ingestion of raw daily bars into a draft version."""
 
-    def __init__(self, catalog: DataCatalog, store: MarketDataStore, source: RawMarketDataSource) -> None:
+    def __init__(
+        self, catalog: DataCatalog, store: MarketDataStore, source: RawMarketDataSource, max_retries: int = 2
+    ) -> None:
+        if max_retries < 0:
+            raise ValueError("max_retries must not be negative")
         self.catalog = catalog
         self.store = store
         self.source = source
+        self.max_retries = max_retries
 
     def run(
         self, start_date: str, end_date: str, *, batch_size: int, stop_after_batches: int | None = None
@@ -37,10 +42,32 @@ class BackfillService:
             if stop_after_batches is not None and completed_batches >= stop_after_batches:
                 return self.catalog.update_ingest_run(run.ingest_run_id, next_symbol_index=index, status="paused")
             symbols = list(run.symbols[index : index + run.batch_size])
-            bars = self.source.fetch_daily_bars(symbols, run.start_date, run.end_date)
-            if not bars.empty:
-                self.store.write_raw_daily_bars(bars, data_version=run.data_version, source=self.source.source_name)
+            error = self._fetch_and_write(run, symbols)
             index += len(symbols)
             completed_batches += 1
-            run = self.catalog.update_ingest_run(run.ingest_run_id, next_symbol_index=index, status="running")
-        return self.catalog.update_ingest_run(run.ingest_run_id, next_symbol_index=index, status="completed")
+            status = "running_with_errors" if error else "running"
+            run = self.catalog.update_ingest_run(run.ingest_run_id, next_symbol_index=index, status=status)
+        errors = self.catalog.list_ingest_errors(run.ingest_run_id)
+        status = "completed_with_errors" if errors else "completed"
+        return self.catalog.update_ingest_run(run.ingest_run_id, next_symbol_index=index, status=status)
+
+    def _fetch_and_write(self, run: IngestRun, symbols: list[str]) -> bool:
+        for attempt_count in range(1, self.max_retries + 2):
+            try:
+                bars = self.source.fetch_daily_bars(symbols, run.start_date, run.end_date)
+                if not bars.empty:
+                    self.store.write_raw_daily_bars(
+                        bars, data_version=run.data_version, source=self.source.source_name
+                    )
+                return False
+            except Exception as exc:  # Source errors are retained as research evidence.
+                if attempt_count == self.max_retries + 1:
+                    for symbol in symbols:
+                        self.catalog.record_ingest_error(
+                            run.ingest_run_id,
+                            symbol=symbol,
+                            error_message=str(exc),
+                            attempt_count=attempt_count,
+                        )
+                    return True
+        return True

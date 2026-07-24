@@ -6,6 +6,8 @@
 
 **Architecture:** Store immutable version manifests and operational metadata in DuckDB, and store large market tables as date-partitioned Parquet files. Every raw row carries `source`, `ingested_at`, and `data_version`; a published data version is immutable and its manifest pins the exact partitions used by research and backtests. Data-source adapters implement one contract so an initial AKShare unadjusted source can later be replaced by an authorized team CSV/API adapter without changing the warehouse or research layers.
 
+**Source priority (updated):** Prefer one internally exported file or one manually reviewed GitHub snapshot imported as local CSV/Parquet with repository revision and file checksum recorded. 第一版不使用在线接口补数；数据不完整时直接标记覆盖缺口，不混入不同口径的临时拉取结果。
+
 **Tech Stack:** Python 3.14, pandas, PyArrow, DuckDB, Parquet, FastAPI, pytest, existing AkShare optional adapter.
 
 ---
@@ -23,7 +25,7 @@
 1. Define the warehouse contract and version manifest before downloading any history.
 2. Build the local storage, query, and immutable publication mechanics using small fixtures.
 3. Add security master, exchange calendar, raw daily bars, corporate actions, and trading status ingestion.
-4. Run a resumable 8-10 year full-universe historical backfill, then publish the first baseline version.
+4. Import and validate 一份 reviewed 8-10 year full-universe snapshot, then publish the first baseline version. 覆盖缺口保留在质量报告中，待后续统一替换快照，不使用在线补数。
 5. Add daily incremental collection, quality gates, and operational alert output.
 6. Change research runs to require and record a published data version.
 7. Add historical index membership and point-in-time financial data as subsequent data domains.
@@ -187,7 +189,7 @@ Expected: FAIL because `BackfillService` does not exist.
 
 - [ ] **Step 3: Implement bounded historical ingestion**
 
-Current status: bounded batches, resumable cursor and draft-only writes are complete. Finite retries, per-symbol error records and period-sensitive universe snapshots remain.
+Current status: bounded batches, resumable cursor, draft-only writes, finite retries and per-symbol error records are complete. Period-sensitive universe snapshots remain; for the first local snapshot import, this will be derived from the supplied security-master fields rather than an online query.
 
 Fetch the security universe as of each relevant period, split symbols into bounded batches, persist the completed batch cursor after every successful write, retry transient source failures with a finite retry count, and record errors per symbol. Never publish the draft data version during this step.
 

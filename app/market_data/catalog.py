@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import duckdb
 
-from app.market_data.models import DataVersion, IngestRun, QualityResult
+from app.market_data.models import DataVersion, IngestError, IngestRun, QualityResult
 from app.market_data.paths import MarketDataPaths
 
 
@@ -139,6 +139,26 @@ class DataCatalog:
             )
         return self.get_ingest_run(ingest_run_id)
 
+    def record_ingest_error(
+        self, ingest_run_id: str, *, symbol: str, error_message: str, attempt_count: int
+    ) -> IngestError:
+        if attempt_count < 1:
+            raise ValueError("attempt_count must be positive")
+        recorded_at = _now()
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT INTO ingest_errors VALUES (?, ?, ?, ?, ?)",
+                [ingest_run_id, symbol, error_message, attempt_count, recorded_at],
+            )
+        return IngestError(ingest_run_id, symbol, error_message, attempt_count, recorded_at)
+
+    def list_ingest_errors(self, ingest_run_id: str) -> list[IngestError]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM ingest_errors WHERE ingest_run_id = ? ORDER BY recorded_at", [ingest_run_id]
+            ).fetchall()
+        return [IngestError(*row) for row in rows]
+
     def _initialize_schema(self) -> None:
         with self._connect() as conn:
             conn.execute(
@@ -151,6 +171,17 @@ class DataCatalog:
                     created_at VARCHAR NOT NULL,
                     published_at VARCHAR,
                     manifest_hash VARCHAR
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS ingest_errors (
+                    ingest_run_id VARCHAR NOT NULL,
+                    symbol VARCHAR NOT NULL,
+                    error_message VARCHAR NOT NULL,
+                    attempt_count INTEGER NOT NULL,
+                    recorded_at VARCHAR NOT NULL
                 )
                 """
             )
