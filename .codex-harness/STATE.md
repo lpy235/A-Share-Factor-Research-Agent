@@ -168,7 +168,7 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 ## In Progress
 
 - [ ] 阶段 0：日频因子研究治理基线与资源预算。
-- [ ] 阶段 1：版本化 A 股原始日频数据仓；已完成数据版本目录、原始日频行情及基础事件表 Parquet 存取，待补齐采集、质量门禁和版本发布联动。
+- [ ] 阶段 1：版本化 A 股原始日频数据仓；已完成版本目录、Parquet 表存取和未复权数据源适配边界，待补齐可恢复采集、质量门禁和版本发布联动。
 
 ## Next Queue
 
