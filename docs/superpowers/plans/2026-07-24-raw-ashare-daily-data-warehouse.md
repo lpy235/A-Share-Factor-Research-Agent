@@ -205,18 +205,18 @@ Expected: PASS.
 
 Commit: `feat: add resumable raw A-share backfill`
 
-### Task 5: Quality Gates and Version Publication
+### Task 5: Quality Gates and Version Publication (In Progress)
 
 **Files:**
 - Create: `app/market_data/quality.py`
 - Create: `tests/test_market_data_quality.py`
 - Modify: `app/market_data/ingestion.py`
 
-- [ ] **Step 1: Write failing quality-gate tests**
+- [x] **Step 1: Write failing quality-gate tests**
 
 Test duplicate keys, invalid OHLC relations, missing exchange trading dates, unexpectedly large price gaps, missing lineage, and failed symbols above a configured threshold. Assert that a failing check leaves the version in `draft` status.
 
-- [ ] **Step 2: Run the focused test and confirm failure**
+- [x] **Step 2: Run the focused test and confirm failure**
 
 Run: `.venv/bin/pytest tests/test_market_data_quality.py -q`
 
@@ -224,9 +224,11 @@ Expected: FAIL because no quality-gate service exists.
 
 - [ ] **Step 3: Implement quality report and publish gate**
 
+Current status: raw-bar lineage, uniqueness, OHLC, unadjusted flag and expected-date coverage checks are persisted and can publish a valid draft. Failed-symbol thresholds and automatic handoff from ingestion remain.
+
 Create a deterministic `QualityReport` with check name, severity, affected count, sample keys, and pass status. Publish only when hard checks pass; persist the report in DuckDB and the immutable version manifest. A failed backfill remains resumable and queryable only as draft data.
 
-- [ ] **Step 4: Run focused tests and commit**
+- [x] **Step 4: Run focused tests and commit**
 
 Run: `.venv/bin/pytest tests/test_market_data_quality.py -q`
 
