@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import duckdb
 
-from app.market_data.models import DataVersion, QualityResult
+from app.market_data.models import DataVersion, IngestRun, QualityResult
 from app.market_data.paths import MarketDataPaths
 
 
@@ -109,6 +109,36 @@ class DataCatalog:
             ).fetchall()
         return [QualityResult(*row) for row in rows]
 
+    def create_ingest_run(
+        self, version_id: str, *, start_date: str, end_date: str, batch_size: int, symbols: list[str]
+    ) -> IngestRun:
+        if batch_size < 1:
+            raise ValueError("batch_size must be positive")
+        self.get_version(version_id)
+        run_id = f"ingest_{uuid4().hex}"
+        created_at = _now()
+        with self._connect() as conn:
+            conn.execute(
+                """INSERT INTO ingest_runs VALUES (?, ?, ?, ?, ?, ?, 0, 'running', ?)""",
+                [run_id, version_id, start_date, end_date, batch_size, json.dumps(symbols), created_at],
+            )
+        return self.get_ingest_run(run_id)
+
+    def get_ingest_run(self, ingest_run_id: str) -> IngestRun:
+        with self._connect() as conn:
+            row = conn.execute("SELECT * FROM ingest_runs WHERE ingest_run_id = ?", [ingest_run_id]).fetchone()
+        if row is None:
+            raise KeyError(f"unknown ingest run: {ingest_run_id}")
+        return IngestRun(*row[:5], tuple(json.loads(row[5])), *row[6:])
+
+    def update_ingest_run(self, ingest_run_id: str, *, next_symbol_index: int, status: str) -> IngestRun:
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE ingest_runs SET next_symbol_index = ?, status = ? WHERE ingest_run_id = ?",
+                [next_symbol_index, status, ingest_run_id],
+            )
+        return self.get_ingest_run(ingest_run_id)
+
     def _initialize_schema(self) -> None:
         with self._connect() as conn:
             conn.execute(
@@ -121,6 +151,21 @@ class DataCatalog:
                     created_at VARCHAR NOT NULL,
                     published_at VARCHAR,
                     manifest_hash VARCHAR
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS ingest_runs (
+                    ingest_run_id VARCHAR PRIMARY KEY,
+                    data_version VARCHAR NOT NULL,
+                    start_date VARCHAR NOT NULL,
+                    end_date VARCHAR NOT NULL,
+                    batch_size INTEGER NOT NULL,
+                    symbols_json VARCHAR NOT NULL,
+                    next_symbol_index INTEGER NOT NULL,
+                    status VARCHAR NOT NULL,
+                    created_at VARCHAR NOT NULL
                 )
                 """
             )

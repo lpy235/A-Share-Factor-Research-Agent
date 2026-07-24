@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
+from uuid import uuid4
 
 import pandas as pd
 
@@ -38,7 +39,7 @@ class MarketDataStore:
 
         paths: list[Path] = []
         for year, partition in bars.groupby(bars["trade_date"].dt.year, sort=True):
-            path = self.paths.raw_daily_bar_partition(data_version, int(year))
+            path = self.paths.raw_daily_bar_partition(data_version, int(year), _part_name())
             if path.exists():
                 raise ValueError(f"raw daily bar partition is immutable: {path}")
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -56,7 +57,7 @@ class MarketDataStore:
             raise ValueError("start_date must not be after end_date")
 
         version_dir = self.paths.lake_dir / "raw_daily_bars" / f"data_version={data_version}"
-        parquet_paths = sorted(version_dir.glob("year=*/part-000.parquet"))
+        parquet_paths = sorted(version_dir.glob("year=*/part-*.parquet"))
         if not parquet_paths:
             return pd.DataFrame(columns=(*RAW_DAILY_BAR_COLUMNS, *LINEAGE_COLUMNS))
         # Read files individually: Hive-style path inference would otherwise add a
@@ -148,7 +149,7 @@ class MarketDataStore:
 
         paths: list[Path] = []
         for year, partition in partitions:
-            path = self.paths.table_partition(table_name, data_version, year=year)
+            path = self.paths.table_partition(table_name, data_version, year=year, part_name=_part_name())
             if path.exists():
                 raise ValueError(f"{table_name} partition is immutable: {path}")
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -166,3 +167,7 @@ class MarketDataStore:
             raise ValueError("data_version is required")
         if not source.strip():
             raise ValueError("source is required")
+
+
+def _part_name() -> str:
+    return f"part-{uuid4().hex}"

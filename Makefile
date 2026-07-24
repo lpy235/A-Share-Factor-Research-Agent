@@ -3,7 +3,7 @@ UVICORN ?= .venv/bin/uvicorn
 HOST ?= 127.0.0.1
 PORT ?= 8000
 
-.PHONY: install test eval compile check run smoke clean-local
+.PHONY: install test eval compile check run smoke clean-local backfill-raw-ashare resume-raw-ashare
 
 install:
 	$(PYTHON) -m pip install -U pip
@@ -32,3 +32,9 @@ smoke:
 clean-local:
 	rm -rf .pytest_cache
 	find app tests -type d -name __pycache__ -prune -exec rm -rf {} +
+
+backfill-raw-ashare:
+	$(PYTHON) scripts/backfill_raw_ashare.py --start $(START) --end $(END)
+
+resume-raw-ashare:
+	$(PYTHON) -c 'from app.market_data.catalog import DataCatalog; from app.market_data.ingestion import BackfillService; from app.market_data.sources.akshare_raw import AkshareRawDataSource; from app.market_data.store import MarketDataStore; c = DataCatalog(); r = BackfillService(c, MarketDataStore(), AkshareRawDataSource()).resume("$(RUN_ID)"); print(r)'
