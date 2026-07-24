@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.market_data.catalog import DataCatalog
 from app.market_data.models import IngestRun
+from app.market_data.quality import QualityGateService
 from app.market_data.sources.base import RawMarketDataSource
 from app.market_data.store import MarketDataStore
 
@@ -10,14 +11,26 @@ class BackfillService:
     """Bounded, resumable ingestion of raw daily bars into a draft version."""
 
     def __init__(
-        self, catalog: DataCatalog, store: MarketDataStore, source: RawMarketDataSource, max_retries: int = 2
+        self,
+        catalog: DataCatalog,
+        store: MarketDataStore,
+        source: RawMarketDataSource,
+        max_retries: int = 2,
+        quality_gate: QualityGateService | None = None,
+        expected_trading_dates: list[str] | None = None,
+        max_failed_symbol_ratio: float = 0.0,
     ) -> None:
         if max_retries < 0:
             raise ValueError("max_retries must not be negative")
+        if not 0 <= max_failed_symbol_ratio <= 1:
+            raise ValueError("max_failed_symbol_ratio must be between zero and one")
         self.catalog = catalog
         self.store = store
         self.source = source
         self.max_retries = max_retries
+        self.quality_gate = quality_gate
+        self.expected_trading_dates = expected_trading_dates
+        self.max_failed_symbol_ratio = max_failed_symbol_ratio
 
     def run(
         self, start_date: str, end_date: str, *, batch_size: int, stop_after_batches: int | None = None
@@ -31,7 +44,7 @@ class BackfillService:
 
     def resume(self, ingest_run_id: str, *, stop_after_batches: int | None = None) -> IngestRun:
         run = self.catalog.get_ingest_run(ingest_run_id)
-        if run.status == "completed":
+        if run.status in {"completed", "completed_with_errors", "published", "quality_failed"}:
             return run
         return self._process(run, stop_after_batches)
 
@@ -49,7 +62,30 @@ class BackfillService:
             run = self.catalog.update_ingest_run(run.ingest_run_id, next_symbol_index=index, status=status)
         errors = self.catalog.list_ingest_errors(run.ingest_run_id)
         status = "completed_with_errors" if errors else "completed"
-        return self.catalog.update_ingest_run(run.ingest_run_id, next_symbol_index=index, status=status)
+        run = self.catalog.update_ingest_run(run.ingest_run_id, next_symbol_index=index, status=status)
+        return self._publish_if_configured(run)
+
+    def _publish_if_configured(self, run: IngestRun) -> IngestRun:
+        if self.quality_gate is None or self.expected_trading_dates is None:
+            return run
+        errors = self.catalog.list_ingest_errors(run.ingest_run_id)
+        bars = self.store.read_raw_daily_bars(run.data_version, run.start_date, run.end_date)
+        try:
+            self.quality_gate.publish_if_valid(
+                run.data_version,
+                bars,
+                expected_trading_dates=self.expected_trading_dates,
+                failed_symbol_count=len(errors),
+                total_symbol_count=len(run.symbols),
+                max_failed_symbol_ratio=self.max_failed_symbol_ratio,
+            )
+        except ValueError:
+            return self.catalog.update_ingest_run(
+                run.ingest_run_id, next_symbol_index=run.next_symbol_index, status="quality_failed"
+            )
+        return self.catalog.update_ingest_run(
+            run.ingest_run_id, next_symbol_index=run.next_symbol_index, status="published"
+        )
 
     def _fetch_and_write(self, run: IngestRun, symbols: list[str]) -> bool:
         for attempt_count in range(1, self.max_retries + 2):

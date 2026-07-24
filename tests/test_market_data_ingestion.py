@@ -2,6 +2,7 @@ import pandas as pd
 
 from app.market_data.catalog import DataCatalog
 from app.market_data.ingestion import BackfillService
+from app.market_data.quality import QualityGateService
 from app.market_data.store import MarketDataStore
 
 
@@ -64,3 +65,38 @@ def test_backfill_retries_then_records_failed_symbols_and_continues(tmp_path):
     errors = catalog.list_ingest_errors(result.ingest_run_id)
     assert errors[0].symbol == "000002.SZ"
     assert errors[0].attempt_count == 2
+
+
+def test_backfill_publishes_only_when_quality_gate_passes(tmp_path):
+    catalog = DataCatalog(tmp_path)
+    service = BackfillService(
+        catalog,
+        MarketDataStore(tmp_path),
+        FakeSource(),
+        quality_gate=QualityGateService(catalog),
+        expected_trading_dates=["2020-01-02"],
+    )
+
+    result = service.run("2020-01-01", "2020-01-31", batch_size=2)
+
+    assert result.status == "published"
+    assert catalog.get_version(result.data_version).status == "published"
+    assert service.resume(result.ingest_run_id).status == "published"
+
+
+def test_backfill_keeps_draft_when_failed_symbol_ratio_exceeds_threshold(tmp_path):
+    catalog = DataCatalog(tmp_path)
+    service = BackfillService(
+        catalog,
+        MarketDataStore(tmp_path),
+        FlakySource(),
+        max_retries=0,
+        quality_gate=QualityGateService(catalog),
+        expected_trading_dates=["2020-01-02"],
+        max_failed_symbol_ratio=0.0,
+    )
+
+    result = service.run("2020-01-01", "2020-01-31", batch_size=1)
+
+    assert result.status == "quality_failed"
+    assert catalog.get_version(result.data_version).status == "draft"

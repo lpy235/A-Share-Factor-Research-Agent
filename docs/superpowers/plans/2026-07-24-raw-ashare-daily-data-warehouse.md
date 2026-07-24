@@ -224,7 +224,7 @@ Expected: FAIL because no quality-gate service exists.
 
 - [ ] **Step 3: Implement quality report and publish gate**
 
-Current status: raw-bar lineage, uniqueness, OHLC, unadjusted flag and expected-date coverage checks are persisted and can publish a valid draft. Failed-symbol thresholds and automatic handoff from ingestion remain.
+Current status: raw-bar lineage, uniqueness, OHLC, unadjusted flag, expected-date coverage and failed-symbol thresholds are persisted. Completed ingestion automatically publishes only a passing draft. Unexpected price-gap detection and richer quality samples remain.
 
 Create a deterministic `QualityReport` with check name, severity, affected count, sample keys, and pass status. Publish only when hard checks pass; persist the report in DuckDB and the immutable version manifest. A failed backfill remains resumable and queryable only as draft data.
 

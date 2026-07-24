@@ -29,8 +29,17 @@ class QualityGateService:
         bars: pd.DataFrame,
         *,
         expected_trading_dates: Iterable[str],
+        failed_symbol_count: int = 0,
+        total_symbol_count: int = 0,
+        max_failed_symbol_ratio: float = 0.0,
     ) -> DataVersion:
-        checks = self.evaluate_raw_daily_bars(bars, expected_trading_dates)
+        checks = self.evaluate_raw_daily_bars(
+            bars,
+            expected_trading_dates,
+            failed_symbol_count=failed_symbol_count,
+            total_symbol_count=total_symbol_count,
+            max_failed_symbol_ratio=max_failed_symbol_ratio,
+        )
         for check in checks:
             self.catalog.record_quality_result(
                 version_id,
@@ -49,7 +58,13 @@ class QualityGateService:
         )
 
     def evaluate_raw_daily_bars(
-        self, bars: pd.DataFrame, expected_trading_dates: Iterable[str]
+        self,
+        bars: pd.DataFrame,
+        expected_trading_dates: Iterable[str],
+        *,
+        failed_symbol_count: int = 0,
+        total_symbol_count: int = 0,
+        max_failed_symbol_ratio: float = 0.0,
     ) -> list[QualityCheck]:
         required = {
             "symbol",
@@ -79,12 +94,18 @@ class QualityGateService:
         actual_dates = set(pd.to_datetime(bars.get("trade_date", []), errors="coerce").dropna().dt.normalize())
         expected_dates = set(pd.to_datetime(list(expected_trading_dates)).normalize())
         calendar_missing = len(expected_dates - actual_dates)
+        failed_ratio = failed_symbol_count / total_symbol_count if total_symbol_count else 0.0
         return [
             QualityCheck("raw_daily_bar_lineage", lineage_missing == 0, lineage_missing),
             QualityCheck("raw_daily_bar_uniqueness", duplicate_count == 0, duplicate_count),
             QualityCheck("raw_daily_bar_ohlc", ohlc_invalid == 0, ohlc_invalid),
             QualityCheck("raw_daily_bar_unadjusted", adjustment_invalid == 0, adjustment_invalid),
             QualityCheck("raw_daily_bar_calendar_coverage", calendar_missing == 0, calendar_missing),
+            QualityCheck(
+                "raw_daily_bar_failed_symbol_ratio",
+                failed_ratio <= max_failed_symbol_ratio,
+                failed_symbol_count,
+            ),
         ]
 
     @staticmethod
