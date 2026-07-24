@@ -45,7 +45,7 @@ market_data/
 
 Each Parquet row includes `source`, `ingested_at`, and `data_version`. The DuckDB metadata tables include `data_versions`, `ingest_runs`, `quality_results`, and `version_partitions`.
 
-### Task 1: Warehouse Contract and Metadata Registry
+### Task 1: Warehouse Contract and Metadata Registry (Completed: `8fc4be7`)
 
 **Files:**
 - Create: `app/market_data/models.py`
@@ -54,7 +54,7 @@ Each Parquet row includes `source`, `ingested_at`, and `data_version`. The DuckD
 - Create: `tests/test_market_data_catalog.py`
 - Modify: `pyproject.toml`
 
-- [ ] **Step 1: Add failing metadata tests**
+- [x] **Step 1: Add failing metadata tests**
 
 ```python
 def test_catalog_publishes_immutable_version(tmp_path):
@@ -66,17 +66,17 @@ def test_catalog_publishes_immutable_version(tmp_path):
         catalog.publish(version.version_id, manifest={"tables": {"raw_daily_bars": 11}})
 ```
 
-- [ ] **Step 2: Run the focused test and confirm failure**
+- [x] **Step 2: Run the focused test and confirm failure**
 
 Run: `.venv/bin/pytest tests/test_market_data_catalog.py -q`
 
 Expected: FAIL because `DataCatalog` does not exist.
 
-- [ ] **Step 3: Add explicit models and DuckDB registry**
+- [x] **Step 3: Add explicit models and DuckDB registry**
 
 Define `DataVersion`, `IngestRun`, and `QualityResult` dataclasses. `DataCatalog` creates the metadata schema, creates draft versions, records partition manifests and quality results, and allows a one-way `draft -> published` transition. Add `duckdb` and `pyarrow` to project dependencies.
 
-- [ ] **Step 4: Run the focused test and commit**
+- [x] **Step 4: Run the focused test and commit**
 
 Run: `.venv/bin/pytest tests/test_market_data_catalog.py -q`
 
@@ -84,14 +84,14 @@ Expected: PASS.
 
 Commit: `feat: add versioned market data catalog`
 
-### Task 2: Immutable Parquet Tables and Schema Validation
+### Task 2: Immutable Parquet Tables and Schema Validation (Completed: `8fc4be7`)
 
 **Files:**
 - Create: `app/market_data/schemas.py`
 - Create: `app/market_data/store.py`
 - Create: `tests/test_market_data_store.py`
 
-- [ ] **Step 1: Write failing raw-bar storage tests**
+- [x] **Step 1: Write failing raw-bar storage tests**
 
 ```python
 def test_store_writes_unadjusted_daily_bars_with_lineage(tmp_path, raw_bars):
@@ -103,21 +103,21 @@ def test_store_writes_unadjusted_daily_bars_with_lineage(tmp_path, raw_bars):
     assert loaded["adjustment"].eq("none").all()
 ```
 
-- [ ] **Step 2: Run the focused test and confirm failure**
+- [x] **Step 2: Run the focused test and confirm failure**
 
 Run: `.venv/bin/pytest tests/test_market_data_store.py -q`
 
 Expected: FAIL because `MarketDataStore` does not exist.
 
-- [ ] **Step 3: Implement schema validation and partitioned writes**
+- [x] **Step 3: Implement schema validation and partitioned writes**
 
 Require `symbol`, `trade_date`, `open`, `high`, `low`, `close`, `volume`, and `amount` for raw daily bars. Reject adjusted input, duplicate `(symbol, trade_date)` rows, non-positive prices, invalid OHLC bounds, and a caller-supplied lineage column. Add lineage internally, write year partitions, and read only by explicit data version.
 
-- [ ] **Step 4: Add event-table schemas**
+- [x] **Step 4: Add event-table schemas**
 
 Implement independent writers for `security_master`, `trading_calendar`, `corporate_actions`, and `security_status`. Each validates its natural key and includes lineage columns. Do not derive adjusted prices in this task.
 
-- [ ] **Step 5: Run focused tests and commit**
+- [x] **Step 5: Run focused tests and commit**
 
 Run: `.venv/bin/pytest tests/test_market_data_store.py -q`
 
@@ -125,7 +125,7 @@ Expected: PASS.
 
 Commit: `feat: add immutable raw A-share data store`
 
-### Task 3: Source Adapter Boundary and Unadjusted AKShare Adapter
+### Task 3: Source Adapter Boundary and Unadjusted AKShare Adapter (Completed: `8099b5b`)
 
 **Files:**
 - Create: `app/market_data/sources/base.py`
@@ -134,25 +134,25 @@ Commit: `feat: add immutable raw A-share data store`
 - Create: `tests/test_market_data_sources.py`
 - Modify: `app/data/ashare_provider.py`
 
-- [ ] **Step 1: Write adapter-contract tests**
+- [x] **Step 1: Write adapter-contract tests**
 
 Test an in-memory source against `RawMarketDataSource`. Test that the AKShare request is constructed with `adjust=""`, and that a normalized result has no adjusted-price field. Test that the CSV adapter rejects missing source metadata and duplicate raw-bar keys.
 
-- [ ] **Step 2: Run the focused test and confirm failure**
+- [x] **Step 2: Run the focused test and confirm failure**
 
 Run: `.venv/bin/pytest tests/test_market_data_sources.py -q`
 
 Expected: FAIL because the raw-source contract and adapters do not exist.
 
-- [ ] **Step 3: Implement source adapters**
+- [x] **Step 3: Implement source adapters**
 
 Define `list_securities(as_of_date)`, `fetch_daily_bars(symbols, start_date, end_date)`, `fetch_corporate_actions(start_date, end_date)`, `fetch_calendar(start_date, end_date)`, and `fetch_security_status(start_date, end_date)`. The AKShare adapter must request unadjusted prices only; unavailable domains must return an explicit capability error rather than fabricating status. The CSV adapter is the future team-data entry point and maps documented columns into the same normalized schemas.
 
-- [ ] **Step 4: Replace the current five-symbol AKShare universe shortcut**
+- [x] **Step 4: Replace the current five-symbol AKShare universe shortcut**
 
 Keep `AkshareAshareDataProvider` only as a temporary compatibility wrapper. Make it delegate to the normalized raw source and return an explicit limitation until the baseline full-universe version is published.
 
-- [ ] **Step 5: Run focused tests and commit**
+- [x] **Step 5: Run focused tests and commit**
 
 Run: `.venv/bin/pytest tests/test_market_data_sources.py tests/test_data_provider_factory.py -q`
 
@@ -160,7 +160,7 @@ Expected: PASS.
 
 Commit: `feat: add raw market data source adapters`
 
-### Task 4: Historical Backfill and Resumable Ingestion
+### Task 4: Historical Backfill and Resumable Ingestion (In Progress: `3f212ef`)
 
 **Files:**
 - Create: `app/market_data/ingestion.py`
@@ -168,7 +168,7 @@ Commit: `feat: add raw market data source adapters`
 - Create: `tests/test_market_data_ingestion.py`
 - Modify: `Makefile`
 
-- [ ] **Step 1: Write resumability tests**
+- [x] **Step 1: Write resumability tests**
 
 ```python
 def test_backfill_resumes_from_completed_symbols(tmp_path, fake_source):
@@ -179,7 +179,7 @@ def test_backfill_resumes_from_completed_symbols(tmp_path, fake_source):
     assert second.completed_symbol_count == 4
 ```
 
-- [ ] **Step 2: Run the focused test and confirm failure**
+- [x] **Step 2: Run the focused test and confirm failure**
 
 Run: `.venv/bin/pytest tests/test_market_data_ingestion.py -q`
 
@@ -187,13 +187,15 @@ Expected: FAIL because `BackfillService` does not exist.
 
 - [ ] **Step 3: Implement bounded historical ingestion**
 
+Current status: bounded batches, resumable cursor and draft-only writes are complete. Finite retries, per-symbol error records and period-sensitive universe snapshots remain.
+
 Fetch the security universe as of each relevant period, split symbols into bounded batches, persist the completed batch cursor after every successful write, retry transient source failures with a finite retry count, and record errors per symbol. Never publish the draft data version during this step.
 
-- [ ] **Step 4: Add the operator command**
+- [x] **Step 4: Add the operator command**
 
 Add `make backfill-raw-ashare START=2016-01-01 END=2026-07-24` calling the script. The script must print the draft version, ingest run id, completed-symbol count, failed-symbol count, and next resume command.
 
-- [ ] **Step 5: Run focused tests and commit**
+- [x] **Step 5: Run focused tests and commit**
 
 Run: `.venv/bin/pytest tests/test_market_data_ingestion.py -q`
 
