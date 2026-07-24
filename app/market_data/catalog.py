@@ -73,6 +73,22 @@ class DataCatalog:
             raise KeyError(f"unknown data version: {version_id}")
         return DataVersion(*row)
 
+    def get_manifest(self, version_id: str) -> dict:
+        manifest_path = self.paths.manifest_dir / f"{version_id}.json"
+        if not manifest_path.exists():
+            raise KeyError(f"no manifest for data version: {version_id}")
+        return json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    def has_published_child(self, parent_version_id: str, update_date: str) -> bool:
+        with self._connect() as conn:
+            rows = conn.execute("SELECT version_id FROM data_versions WHERE status = 'published'").fetchall()
+        for (version_id,) in rows:
+            manifest = self.get_manifest(version_id)
+            context = manifest.get("manifest", {})
+            if context.get("parent_version_id") == parent_version_id and context.get("update_date") == update_date:
+                return True
+        return False
+
     def record_quality_result(
         self,
         version_id: str,

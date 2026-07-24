@@ -32,6 +32,7 @@ class QualityGateService:
         failed_symbol_count: int = 0,
         total_symbol_count: int = 0,
         max_failed_symbol_ratio: float = 0.0,
+        manifest_context: dict | None = None,
     ) -> DataVersion:
         checks = self.evaluate_raw_daily_bars(
             bars,
@@ -54,7 +55,7 @@ class QualityGateService:
             raise ValueError(f"quality gates failed: {names}")
         return self.catalog.publish(
             version_id,
-            manifest={"quality_checks": [asdict(check) for check in checks]},
+            manifest={**(manifest_context or {}), "quality_checks": [asdict(check) for check in checks]},
         )
 
     def evaluate_raw_daily_bars(
