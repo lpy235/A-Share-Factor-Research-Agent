@@ -214,7 +214,7 @@ def _load_documents(state: ResearchState, tracer: GraphEventTracer) -> ResearchS
     }
     if source_mode in {"auto", "hybrid"}:
         discovered, discovery_diagnostics = PublicSourceDiscovery().discover_with_diagnostics(
-            query=state["research_topic"],
+            query=state.get("research_topic") or "",
             max_sources=state.get("max_sources", 3),
             allow_live_fetch=state.get("allow_live_fetch", False),
         )
@@ -281,10 +281,11 @@ def _retrieve_chunks(state: ResearchState, tracer: GraphEventTracer) -> Research
 
     max_chunks = state.get("max_chunks", 5)
     retrieval_mode = state.get("retrieval_mode", "hybrid")
-    if chunks:
+    research_topic = state.get("research_topic")
+    if chunks and research_topic:
         retrieved, diagnostics = _retrieve_by_mode(
             chunks=chunks,
-            query=state["research_topic"],
+            query=research_topic,
             top_k=max_chunks,
             retrieval_mode=retrieval_mode,
             embedding_dim=state.get("embedding_dim", 256),
@@ -298,6 +299,14 @@ def _retrieve_chunks(state: ResearchState, tracer: GraphEventTracer) -> Research
                 {"reason": "retrieval_empty", "retrieval_mode": retrieval_mode},
             )
             chunks = chunks[:max_chunks]
+    elif chunks:
+        state["retrieval_diagnostics"] = {
+            "retrieval_mode": retrieval_mode,
+            "retrieved_count": len(chunks[:max_chunks]),
+            "skipped": True,
+            "skip_reason": "no_research_topic",
+        }
+        chunks = chunks[:max_chunks]
 
     if not chunks:
         tracer.node_fallback("RetrieveChunksNode", {"reason": "no_chunks_available"})
@@ -356,7 +365,7 @@ def _retrieval_diagnostics(
 def _extract_hypotheses(state: ResearchState, tracer: GraphEventTracer) -> ResearchState:
     chunks = [_chunk_from_dict(chunk) for chunk in state.get("chunks", [])]
     extraction = StructuredFactorExtractor(_build_llm_client(state)).extract(
-        research_topic=state["research_topic"],
+        research_topic=state.get("research_topic") or "",
         chunks=chunks,
         extraction_mode=state.get("extraction_mode", "hybrid"),
         enable_llm_extraction=state.get("enable_llm_extraction", False),
@@ -1023,7 +1032,7 @@ def _generate_report(state: ResearchState, tracer: GraphEventTracer) -> Research
         data_limitation = "当前报告使用 fixture 数据演示完整流程。"
     state["audit_trail"] = build_audit_trail(state)
     state["report_markdown"] = render_report(
-        research_topic=state["research_topic"],
+        research_topic=state.get("research_topic") or "上传文档因子研究",
         sources=[
             {"source_title": item.get("source_title"), "source_url": item.get("source_url")}
             for item in hypotheses

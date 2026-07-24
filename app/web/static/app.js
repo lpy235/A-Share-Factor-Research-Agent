@@ -196,7 +196,7 @@ function setSourceMode(mode) {
 
 function buildRunPayload(documentIds) {
   return {
-    research_topic: valueOf("#research-topic"),
+    research_topic: valueOf("#research-topic") || null,
     source_mode: selectedRadioValue("source_mode_radio"),
     document_ids: documentIds,
     universe: valueOf("#universe"),

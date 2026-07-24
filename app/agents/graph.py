@@ -44,8 +44,6 @@ def build_research_graph():
 def run_research_workflow(state: ResearchState) -> ResearchState:
     if not state.get("run_id"):
         raise ValueError("run_id is required")
-    if not state.get("research_topic"):
-        raise ValueError("research_topic is required")
 
     initial_state: ResearchState = {
         "source_mode": "upload",

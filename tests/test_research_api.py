@@ -349,3 +349,38 @@ def test_research_api_supports_async_run_with_polling():
 
     runs_response = client.get("/runs")
     assert any(item["run_id"] == run_id for item in runs_response.json()["runs"])
+
+
+def test_research_api_allows_upload_without_research_topic():
+    client = TestClient(app)
+    with open("fixture_docs/research_report_example.md", "rb") as f:
+        upload = client.post(
+            "/documents",
+            files={"file": ("research_report_example.md", f, "text/markdown")},
+        )
+    document_id = upload.json()["document_id"]
+
+    response = client.post(
+        "/research/runs",
+        json={
+            "source_mode": "upload",
+            "document_ids": [document_id],
+            "max_chunks": 10,
+            "data_provider": "fixture",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    run = client.get(f"/runs/{body['run_id']}").json()
+    assert run["research_topic"] == "research_report_example"
+    assert body["selected_factors"]
+
+
+def test_research_api_rejects_auto_without_research_topic_or_documents():
+    response = TestClient(app).post(
+        "/research/runs",
+        json={"source_mode": "auto", "max_sources": 2},
+    )
+
+    assert response.status_code == 422

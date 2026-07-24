@@ -23,7 +23,7 @@ run_store = RunStore(DB_PATH)
 
 
 class ResearchRunRequest(BaseModel):
-    research_topic: str
+    research_topic: str | None = None
     source_mode: str = "upload"
     document_ids: list[str] = []
     universe: str = "CSI300"
@@ -62,15 +62,22 @@ def create_research_run(request: ResearchRunRequest):
         except (KeyError, ValueError) as exc:
             raise HTTPException(status_code=422, detail="Historical universe not found") from exc
     run_id = f"run_{uuid4().hex[:12]}"
-    request_config = request.model_dump()
     llm_config_summary = _summarize_llm_config(request.llm_config)
-    request_config["llm_config"] = llm_config_summary
     document_paths = []
     if request.document_ids:
         from app.storage.documents import DocumentStore
 
         document_store = DocumentStore()
         document_paths = [document_store.get(document_id).path for document_id in request.document_ids]
+
+    if not request.research_topic and request.source_mode == "auto" and not document_paths:
+        raise HTTPException(
+            status_code=422,
+            detail="research_topic is required for auto source mode without uploaded documents",
+        )
+
+    request_config = request.model_dump()
+    request_config["llm_config"] = llm_config_summary
 
     event_store.append(
         run_id,
@@ -82,7 +89,7 @@ def create_research_run(request: ResearchRunRequest):
     if request.async_run:
         run_store.save_run(
             run_id,
-            research_topic=request.research_topic,
+            research_topic=request.research_topic or _derive_research_topic(document_paths),
             status="running",
             config=request_config,
             response={"run_id": run_id, "status": "running"},
@@ -165,7 +172,7 @@ def _execute_and_build_response(
     }
     run_store.save_run(
         run_id,
-        research_topic=request.research_topic,
+        research_topic=request.research_topic or _derive_research_topic(document_paths),
         status="completed",
         config=request_config,
         response=response,
@@ -194,7 +201,7 @@ def _execute_run_async(
         )
         run_store.save_run(
             run_id,
-            research_topic=request.research_topic,
+            research_topic=request.research_topic or _derive_research_topic(document_paths),
             status="failed",
             config=request_config,
             response={"run_id": run_id, "status": "failed", "error": error_message},
@@ -265,6 +272,13 @@ def _build_run_started_payload(request: ResearchRunRequest, llm_config_summary: 
         "historical_universe_id": request.historical_universe_id,
         "async_run": request.async_run,
     }
+
+
+def _derive_research_topic(document_paths: list[str]) -> str:
+    if document_paths:
+        from pathlib import Path
+        return Path(document_paths[0]).stem
+    return "上传文档因子研究"
 
 
 def _summarize_llm_config(config: dict) -> dict:

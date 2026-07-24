@@ -162,6 +162,8 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 - [x] Walk-forward stability: rolling-window IC analysis (5 windows) with positive_ratio / sign_consistent / cross-window stats; report adds WF columns.
 - [x] Multi-factor combination optimization: equal_weight / ic_weight / risk_parity composite factors backtested with benchmark-relative metrics; report adds combination section.
 - [x] Full pytest (151), eval (5/5), compileall, ruff verification passed after walk-forward + combination changes.
+- [x] Optional research_topic: upload mode runs without a topic (skips retrieval, derives topic from filename); auto mode without topic or documents returns 422.
+- [x] Full pytest (153), eval (5/5), ruff verification passed after optional research_topic changes.
 
 ## In Progress
 
