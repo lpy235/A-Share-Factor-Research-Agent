@@ -1,0 +1,145 @@
+import hashlib
+import json
+from datetime import UTC, datetime
+from pathlib import Path
+from uuid import uuid4
+
+import duckdb
+
+from app.market_data.models import DataVersion, QualityResult
+from app.market_data.paths import MarketDataPaths
+
+
+class DataCatalog:
+    """Tracks immutable market-data versions and their quality evidence."""
+
+    def __init__(self, root: str | Path = "market_data") -> None:
+        self.paths = MarketDataPaths(root)
+        self.paths.root.mkdir(parents=True, exist_ok=True)
+        self.paths.manifest_dir.mkdir(parents=True, exist_ok=True)
+        self._initialize_schema()
+
+    def create_draft(self, *, source: str, as_of_date: str) -> DataVersion:
+        if not source.strip():
+            raise ValueError("source is required")
+        created_at = _now()
+        version_id = f"v{as_of_date.replace('-', '')}_{uuid4().hex[:8]}"
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO data_versions(version_id, source, as_of_date, status, created_at)
+                VALUES (?, ?, ?, 'draft', ?)
+                """,
+                [version_id, source, as_of_date, created_at],
+            )
+        return self.get_version(version_id)
+
+    def publish(self, version_id: str, *, manifest: dict) -> DataVersion:
+        version = self.get_version(version_id)
+        if version.status != "draft":
+            raise ValueError("data version is immutable after publication")
+        manifest_payload = {
+            "version_id": version_id,
+            "source": version.source,
+            "as_of_date": version.as_of_date,
+            "manifest": manifest,
+        }
+        encoded = json.dumps(manifest_payload, ensure_ascii=False, sort_keys=True)
+        manifest_hash = hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+        manifest_path = self.paths.manifest_dir / f"{version_id}.json"
+        manifest_path.write_text(encoded, encoding="utf-8")
+        published_at = _now()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE data_versions
+                SET status = 'published', published_at = ?, manifest_hash = ?
+                WHERE version_id = ?
+                """,
+                [published_at, manifest_hash, version_id],
+            )
+        return self.get_version(version_id)
+
+    def get_version(self, version_id: str) -> DataVersion:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT version_id, source, as_of_date, status, created_at, published_at, manifest_hash
+                FROM data_versions WHERE version_id = ?
+                """,
+                [version_id],
+            ).fetchone()
+        if row is None:
+            raise KeyError(f"unknown data version: {version_id}")
+        return DataVersion(*row)
+
+    def record_quality_result(
+        self,
+        version_id: str,
+        *,
+        check_name: str,
+        passed: bool,
+        affected_count: int,
+        severity: str,
+    ) -> QualityResult:
+        self.get_version(version_id)
+        if affected_count < 0:
+            raise ValueError("affected_count must be non-negative")
+        recorded_at = _now()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO quality_results(version_id, check_name, passed, affected_count, severity, recorded_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                [version_id, check_name, passed, affected_count, severity, recorded_at],
+            )
+        return QualityResult(
+            version_id, check_name, passed, affected_count, severity, recorded_at
+        )
+
+    def list_quality_results(self, version_id: str) -> list[QualityResult]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT version_id, check_name, passed, affected_count, severity, recorded_at
+                FROM quality_results WHERE version_id = ? ORDER BY recorded_at
+                """,
+                [version_id],
+            ).fetchall()
+        return [QualityResult(*row) for row in rows]
+
+    def _initialize_schema(self) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS data_versions (
+                    version_id VARCHAR PRIMARY KEY,
+                    source VARCHAR NOT NULL,
+                    as_of_date VARCHAR NOT NULL,
+                    status VARCHAR NOT NULL,
+                    created_at VARCHAR NOT NULL,
+                    published_at VARCHAR,
+                    manifest_hash VARCHAR
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS quality_results (
+                    version_id VARCHAR NOT NULL,
+                    check_name VARCHAR NOT NULL,
+                    passed BOOLEAN NOT NULL,
+                    affected_count BIGINT NOT NULL,
+                    severity VARCHAR NOT NULL,
+                    recorded_at VARCHAR NOT NULL
+                )
+                """
+            )
+
+    def _connect(self):
+        return duckdb.connect(str(self.paths.database_path))
+
+
+def _now() -> str:
+    return datetime.now(UTC).isoformat()

@@ -21,6 +21,8 @@ dependencies = [
   "beautifulsoup4",
   "requests",
   "matplotlib",
+  "duckdb",
+  "pyarrow",
 ]
 
 [project.optional-dependencies]

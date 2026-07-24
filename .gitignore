@@ -17,6 +17,7 @@ logs/
 demo_artifacts/*.png
 run_artifacts/
 historical_universes/
+/market_data/
 
 # 本地服务开关产物
 .serve.pid
