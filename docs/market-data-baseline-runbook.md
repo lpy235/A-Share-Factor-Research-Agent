@@ -51,6 +51,21 @@ source,ingested_at,data_version,adjustment
 
 其中 `adjustment` 固定为 `none`。不要在原始表中写入前复权、后复权或除权价格；后续如需研究价格层，必须单独定义变换编号及其父原始版本。
 
+交易日历 CSV 必须包含 `trade_date`；可选的 `is_trading_day` 列可标记非交易日。正式导入通过以下本地命令执行，命令会将行情文件、交易日历文件的 SHA-256 与 `snapshot_ref` 写入版本 manifest：
+
+```bash
+python -m app.market_data.cli import-csv \
+  --csv /absolute/path/raw_daily_bars.csv \
+  --calendar-csv /absolute/path/trading_calendar.csv \
+  --source internal_authorized_export \
+  --snapshot-ref internal-export-2026-07-25 \
+  --start-date 2020-01-01 \
+  --end-date 2020-12-31 \
+  --warehouse-root market_data
+```
+
+命令只接受本地文件，质量门禁未通过时返回非零状态且保留草稿版本供排查；不会调用网络或用 fixture 填补缺失数据。
+
 ## 两只股票、一年演练
 
 在下载全市场数据前，先用来源明确的两只股票、一个完整自然年 CSV 演练。通过标准是流程完整可重复，而不是收益表现：

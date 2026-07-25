@@ -137,6 +137,8 @@ make check
 make run
 ```
 
+本地原始日频 CSV 的质量发布命令见 [原始日频数据基线运行手册](docs/market-data-baseline-runbook.md)。
+
 Manual verification:
 
 ```bash

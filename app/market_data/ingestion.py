@@ -19,6 +19,7 @@ class BackfillService:
         quality_gate: QualityGateService | None = None,
         expected_trading_dates: list[str] | None = None,
         max_failed_symbol_ratio: float = 0.0,
+        manifest_context: dict | None = None,
     ) -> None:
         if max_retries < 0:
             raise ValueError("max_retries must not be negative")
@@ -31,6 +32,7 @@ class BackfillService:
         self.quality_gate = quality_gate
         self.expected_trading_dates = expected_trading_dates
         self.max_failed_symbol_ratio = max_failed_symbol_ratio
+        self.manifest_context = manifest_context
 
     def run(
         self, start_date: str, end_date: str, *, batch_size: int, stop_after_batches: int | None = None
@@ -78,6 +80,7 @@ class BackfillService:
                 failed_symbol_count=len(errors),
                 total_symbol_count=len(run.symbols),
                 max_failed_symbol_ratio=self.max_failed_symbol_ratio,
+                manifest_context=self.manifest_context,
             )
         except ValueError:
             return self.catalog.update_ingest_run(
