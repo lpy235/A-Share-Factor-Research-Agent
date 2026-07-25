@@ -1,3 +1,5 @@
+import re
+
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -71,6 +73,18 @@ def test_dashboard_static_assets_served():
     assert "readLlmConfig" in js_response.text
     assert "maskSecret" in js_response.text
     assert "POST" in js_response.text
+
+
+def test_dashboard_starts_with_an_empty_research_topic_for_uploads():
+    response = TestClient(app).get("/")
+
+    topic_field = re.search(
+        r'<textarea[^>]*id="research-topic"[^>]*>\s*</textarea>',
+        response.text,
+    )
+
+    assert topic_field is not None
+    assert "上传研报时可留空" in topic_field.group(0)
 
 
 def test_openapi_schema_uses_chinese_product_name():
