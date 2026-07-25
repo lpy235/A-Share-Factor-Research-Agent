@@ -1030,6 +1030,8 @@ def _generate_report(state: ResearchState, tracer: GraphEventTracer) -> Research
         )
     elif provider == "akshare":
         data_limitation = "当前报告使用 AKShare A 股日线数据；数据可用性取决于公开接口状态。"
+    elif provider == "warehouse":
+        data_limitation = "当前报告使用已发布的本地原始日频数据版本，可按 manifest 哈希复现。"
     else:
         data_limitation = "当前报告使用 fixture 数据演示完整流程。"
     state["audit_trail"] = build_audit_trail(state)
@@ -1038,8 +1040,6 @@ def _generate_report(state: ResearchState, tracer: GraphEventTracer) -> Research
         sources=[
             {"source_title": item.get("source_title"), "source_url": item.get("source_url")}
             for item in hypotheses
-    elif provider == "warehouse":
-        data_limitation = "当前报告使用已发布的本地原始日频数据版本，可按 manifest 哈希复现。"
         ],
         factors=state.get("factor_specs", []),
         metrics=state.get("metrics", []),
@@ -1073,6 +1073,9 @@ def _build_backtest_assumptions(
         "start_date": state.get("start_date", "2020-01-01"),
         "end_date": state.get("end_date", "2020-12-31"),
         "data_provider": provider,
+        "data_version": diagnostics.get("data_version"),
+        "manifest_hash": diagnostics.get("manifest_hash"),
+        "market_data_source": diagnostics.get("source"),
         "fallback_used": bool(diagnostics.get("fallback_used", False)),
         "rebalance_frequency": "daily",
         "forward_return_period": "1 trading day",
@@ -1081,9 +1084,6 @@ def _build_backtest_assumptions(
         "commission_bps": state.get("commission_bps", 3.0),
         "stamp_duty_bps": state.get("stamp_duty_bps", 5.0),
         "slippage_bps": state.get("slippage_bps", 5.0),
-        "data_version": diagnostics.get("data_version"),
-        "manifest_hash": diagnostics.get("manifest_hash"),
-        "market_data_source": diagnostics.get("source"),
         "exclude_st": state.get("exclude_st", True),
         "min_listing_days": state.get("min_listing_days", 60),
         "adjustment": "warehouse 模式使用原始不复权日线；其他模式按各自来源披露。",
