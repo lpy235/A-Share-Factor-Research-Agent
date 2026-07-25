@@ -172,7 +172,7 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 
 ## Next Queue
 
-- [ ] Build a versioned factor registry after the backtest layer is stable.
+- [ ] 按 `docs/2026-07-25-next-ten-tasks.md` 连续执行因子库、因子裂变、研究编排和基金经理建议闭环；真实数据演练与全市场回填仅在取得授权快照后执行。
 
 ## Known Risks
 
