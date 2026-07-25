@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+import pandas as pd
+
 from app.market_data.catalog import DataCatalog
 from app.market_data.models import IngestRun
 from app.market_data.quality import QualityGateService
@@ -20,6 +24,7 @@ class BackfillService:
         expected_trading_dates: list[str] | None = None,
         max_failed_symbol_ratio: float = 0.0,
         manifest_context: dict | None = None,
+        reference_tables: dict[str, pd.DataFrame] | None = None,
     ) -> None:
         if max_retries < 0:
             raise ValueError("max_retries must not be negative")
@@ -33,12 +38,15 @@ class BackfillService:
         self.expected_trading_dates = expected_trading_dates
         self.max_failed_symbol_ratio = max_failed_symbol_ratio
         self.manifest_context = manifest_context
+        self.reference_tables = reference_tables or {}
+        self._reference_table_partitions: dict[str, list[str]] = {}
 
     def run(
         self, start_date: str, end_date: str, *, batch_size: int, stop_after_batches: int | None = None
     ) -> IngestRun:
         symbols = self.source.list_securities(end_date)["symbol"].astype(str).tolist()
         version = self.catalog.create_draft(source=self.source.source_name, as_of_date=end_date)
+        self._write_reference_tables(version.version_id)
         run = self.catalog.create_ingest_run(
             version.version_id, start_date=start_date, end_date=end_date, batch_size=batch_size, symbols=symbols
         )
@@ -80,7 +88,11 @@ class BackfillService:
                 failed_symbol_count=len(errors),
                 total_symbol_count=len(run.symbols),
                 max_failed_symbol_ratio=self.max_failed_symbol_ratio,
-                manifest_context=self.manifest_context,
+                manifest_context={
+                    **(self.manifest_context or {}),
+                    "reference_table_partitions": self._reference_table_partitions,
+                },
+                reference_tables=self.reference_tables,
             )
         except ValueError:
             return self.catalog.update_ingest_run(
@@ -89,6 +101,24 @@ class BackfillService:
         return self.catalog.update_ingest_run(
             run.ingest_run_id, next_symbol_index=run.next_symbol_index, status="published"
         )
+
+    def _write_reference_tables(self, version_id: str) -> None:
+        writers = {
+            "security_master": self.store.write_security_master,
+            "trading_calendar": self.store.write_trading_calendar,
+            "security_status": self.store.write_security_status,
+            "corporate_actions": self.store.write_corporate_actions,
+        }
+        for table_name, frame in self.reference_tables.items():
+            if table_name not in writers:
+                raise ValueError(f"unsupported reference table: {table_name}")
+            written = writers[table_name](
+                frame, data_version=version_id, source=self.source.source_name
+            )
+            paths = written if isinstance(written, list) else [written]
+            self._reference_table_partitions[table_name] = [
+                str(Path(path).relative_to(self.store.paths.root)) for path in paths
+            ]
 
     def _fetch_and_write(self, run: IngestRun, symbols: list[str]) -> bool:
         for attempt_count in range(1, self.max_retries + 2):

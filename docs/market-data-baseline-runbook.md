@@ -57,6 +57,9 @@ source,ingested_at,data_version,adjustment
 python -m app.market_data.cli import-csv \
   --csv /absolute/path/raw_daily_bars.csv \
   --calendar-csv /absolute/path/trading_calendar.csv \
+  --security-master-csv /absolute/path/security_master.csv \
+  --security-status-csv /absolute/path/security_status.csv \
+  --corporate-actions-csv /absolute/path/corporate_actions.csv \
   --source internal_authorized_export \
   --snapshot-ref internal-export-2026-07-25 \
   --start-date 2020-01-01 \
@@ -65,6 +68,17 @@ python -m app.market_data.cli import-csv \
 ```
 
 命令只接受本地文件，质量门禁未通过时返回非零状态且保留草稿版本供排查；不会调用网络或用 fixture 填补缺失数据。
+
+`--security-master-csv`、`--security-status-csv`、`--corporate-actions-csv` 是正式全市场基线应提供的参考文件。字段合约如下：
+
+```text
+security_master:    symbol,exchange,security_name,listing_date[,delisting_date]
+security_status:    symbol,trade_date,is_st,is_suspended
+corporate_actions:  symbol,ex_date,action_type
+trading_calendar:   trade_date,is_trading_day[,exchange]
+```
+
+导入器将交易日历写入 `trading_calendar` 表；缺少 `exchange` 时使用 `--calendar-exchange`（默认 `CN`）。参考表与日线共享相同 `data_version`、`source` 和 `ingested_at`，其 CSV SHA-256 及写入的 Parquet 分区路径会写入 manifest。参考文件一旦提供，其数据契约错误将阻止版本发布。
 
 ## 两只股票、一年演练
 

@@ -31,6 +31,10 @@ def _build_parser() -> argparse.ArgumentParser:
     importer = subparsers.add_parser("import-csv", help="quality-gate and publish an authorized local CSV snapshot")
     importer.add_argument("--csv", required=True, type=Path, help="raw daily-bar CSV")
     importer.add_argument("--calendar-csv", required=True, type=Path, help="trading-calendar CSV")
+    importer.add_argument("--calendar-exchange", default="CN", help="calendar exchange when CSV omits exchange")
+    importer.add_argument("--security-master-csv", type=Path, help="optional security-master CSV")
+    importer.add_argument("--security-status-csv", type=Path, help="optional ST/suspension status CSV")
+    importer.add_argument("--corporate-actions-csv", type=Path, help="optional corporate-actions CSV")
     importer.add_argument("--source", required=True, help="auditable source name")
     importer.add_argument("--snapshot-ref", required=True, help="export batch, URL, Git commit, or Release reference")
     importer.add_argument("--start-date", required=True, help="inclusive YYYY-MM-DD")
@@ -44,6 +48,7 @@ def _build_parser() -> argparse.ArgumentParser:
 def _import_csv(args: argparse.Namespace) -> int:
     source = CsvRawDataSource.from_daily_bars_csv(args.csv, source=args.source)
     expected_dates = _read_expected_trading_dates(args.calendar_csv, args.start_date, args.end_date)
+    reference_tables, reference_hashes = _read_reference_tables(args)
     root = args.warehouse_root
     catalog = DataCatalog(root)
     service = BackfillService(
@@ -57,7 +62,9 @@ def _import_csv(args: argparse.Namespace) -> int:
             "snapshot_ref": args.snapshot_ref,
             "daily_bars_file_sha256": _sha256(args.csv),
             "calendar_file_sha256": _sha256(args.calendar_csv),
+            "reference_table_file_sha256": reference_hashes,
         },
+        reference_tables=reference_tables,
     )
     result = service.run(args.start_date, args.end_date, batch_size=args.batch_size)
     version = catalog.get_version(result.data_version)
@@ -73,6 +80,25 @@ def _import_csv(args: argparse.Namespace) -> int:
         )
     )
     return 0 if result.status == "published" else 1
+
+
+def _read_reference_tables(args: argparse.Namespace) -> tuple[dict[str, pd.DataFrame], dict[str, str]]:
+    calendar = pd.read_csv(args.calendar_csv)
+    if "is_trading_day" not in calendar:
+        calendar["is_trading_day"] = True
+    if "exchange" not in calendar:
+        calendar["exchange"] = args.calendar_exchange
+    tables = {"trading_calendar": calendar}
+    hashes: dict[str, str] = {}
+    for table_name, path in {
+        "security_master": args.security_master_csv,
+        "security_status": args.security_status_csv,
+        "corporate_actions": args.corporate_actions_csv,
+    }.items():
+        if path is not None:
+            tables[table_name] = pd.read_csv(path)
+            hashes[table_name] = _sha256(path)
+    return tables, hashes
 
 
 def _read_expected_trading_dates(path: Path, start_date: str, end_date: str) -> list[str]:
