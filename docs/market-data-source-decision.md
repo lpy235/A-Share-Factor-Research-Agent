@@ -28,6 +28,8 @@
 | `1nchaos/adata` | 不作为正式源 | 项目是公开网站的多源在线接口封装，不提供固定离线历史快照；响应会随上游服务变化 | 只可作两标的交叉核验或临时开发，不直接入正式库 |
 | AKShare `stock_zh_a_hist` / 东方财富公开行情 | 可作为本地演练候选，不作为正式基线 | 实测 `adjust=""` 可取得 2020 年 `000001`、`600000` 各 243 行 OHLCV/成交额；AKShare 文档明确该参数为“不复权”。AKShare 代码为 MIT，但这不等同于其上游东方财富数据的再分发或生产使用授权。 | 仅在本地下载后固定为带 SHA-256 的两标的开发演练快照；不能据此启动全市场正式历史库 |
 | AKShare `stock_zh_a_daily` / 新浪财经公开行情 | 本地两标的一年演练已通过，不作为正式基线 | `adjust=""` 明确为不复权；2020 年 `000001.SZ`、`600000.SH` 各取得 243 个交易日，导入后生成已发布版本 `v20201231_fb995fa6`。 | 仅限本地、不再分发的流程演练；全市场正式基线仍需明确许可的离线快照 |
+| `AkatsukiYamisora/stock-prediction-with-DL` | 不作为历史快照 | 固定提交 `2a37e5085d1f8cb00ebc338a0eea9e7700757acd` 的完整树只含 `hs300_stocks.csv`、`sh.000300.csv` 和单只 `sh.600000.csv` 训练数据；仓库的 GPL-3.0 代码许可证不能单独证明上游行情数据可再分发。 | 仅可作为小样本研究项目参考，不能覆盖全 A 股、8 至 10 年或四类参考表 |
+| Kaggle `liqiang2022/2022-china-securities-index-stockscsi100-dataset` | 不作为历史快照 | Kaggle 目录标注 Community Data License Agreement - Permissive 1.0，但说明和体积（约 576 KB）表明其仅为 2022 年 CSI100 成分股集合；目录未提供全市场历史覆盖或参考表证据。 | 不满足全 A 股、8 至 10 年、退市/ST/停牌及公司行为要求 |
 
 本次核对的候选提交仅用于可重复地复查仓库文档，并不代表数据版本：
 
@@ -35,7 +37,11 @@
 bzcsk2/daily_stock_data  e0efc471e5350e08c58018cb49ba0e215cf1fb92
 1nchaos/adata             b14f4e57b2175302f18b6eaf934f7dff9207a141
 akfamily/akshare           2026-07-24 可见提交（MIT 仅覆盖接口代码）
+AkatsukiYamisora/stock-prediction-with-DL  2a37e5085d1f8cb00ebc338a0eea9e7700757acd
+Kaggle liqiang2022/2022-china-securities-index-stockscsi100-dataset  version 1
 ```
+
+本轮还检索了 GitHub 仓库目录与 Kaggle 公共目录。检索结果主要是在线数据接口、采集工具、模型训练样本或指数子集，未发现同时具备明确数据授权、固定离线版本、原始不复权全 A 股日线和四类参考表的公开快照。因此不改变“等待正式授权快照”的结论。
 
 ## 最小可行执行路径
 

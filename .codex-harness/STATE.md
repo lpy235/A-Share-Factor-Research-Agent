@@ -172,7 +172,7 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 
 ## Next Queue
 
-- [ ] 因子库、受限 DSL 变形、固定版本实验编排和 PM 建议闭环已完成；两标的一年本地授权演练已完成；全市场回填仅在取得明确授权快照后执行。
+- [ ] 因子库、受限 DSL 变形、固定版本实验编排和 PM 建议闭环已完成；两标的一年本地授权演练已完成；已复查 GitHub 与 Kaggle 公开候选但无合格全市场离线快照；全市场回填仅在取得明确授权快照后执行。
 
 ## Known Risks
 
