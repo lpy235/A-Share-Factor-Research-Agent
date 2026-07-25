@@ -60,6 +60,7 @@ python -m app.market_data.cli import-csv \
   --security-master-csv /absolute/path/security_master.csv \
   --security-status-csv /absolute/path/security_status.csv \
   --corporate-actions-csv /absolute/path/corporate_actions.csv \
+  --require-reference-tables \
   --source internal_authorized_export \
   --snapshot-ref internal-export-2026-07-25 \
   --start-date 2020-01-01 \
@@ -69,7 +70,11 @@ python -m app.market_data.cli import-csv \
 
 命令只接受本地文件，质量门禁未通过时返回非零状态且保留草稿版本供排查；不会调用网络或用 fixture 填补缺失数据。
 
-`--security-master-csv`、`--security-status-csv`、`--corporate-actions-csv` 是正式全市场基线应提供的参考文件。字段合约如下：
+`--require-reference-tables` 是正式全市场基线的强制开关。启用后，证券主表、交易日历、证券状态和公司行为四张表必须全部存在；任一缺失都会以硬质量门禁阻止发布，版本和已写入的 Parquet 保持草稿，供审计与排查。该策略同时写入 manifest 的 `reference_tables_required`。
+
+两标的一年本地演练可不使用该开关，以保留仅验证日线导入和复现能力的入口；这绝不等同于正式全市场基线。
+
+`--security-master-csv`、`--security-status-csv`、`--corporate-actions-csv` 是正式全市场基线必须提供的参考文件。字段合约如下：
 
 ```text
 security_master:    symbol,exchange,security_name,listing_date[,delisting_date]
@@ -114,7 +119,7 @@ trading_calendar:   trade_date,is_trading_day[,exchange]
 1. 为此次回填确定一个日期范围和唯一数据源快照，预先估算磁盘空间并保留至少 30% 余量。
 2. 创建草稿版本，以可恢复的批次导入方式运行；保留每个失败标的和重试次数，不能以 fixture 补齐失败数据。
 3. 发生中断时只恢复同一导入运行，不创建替代版本或覆盖既有 Parquet 分区。
-4. 回填完成后检查失败标的比例、交易日覆盖、异常 OHLC、重复行和血缘字段。任何硬门禁失败都不得发布。
+4. 回填命令必须包含 `--require-reference-tables`，并检查失败标的比例、交易日覆盖、异常 OHLC、重复行和血缘字段。任何硬门禁失败都不得发布。
 5. 发布成功后冻结该版本和 manifest；后续每日更新必须形成以该版本为父版本的增量子版本，不能修改已发布的历史版本。
 
 ## 日常更新与回滚原则
@@ -129,6 +134,7 @@ trading_calendar:   trade_date,is_trading_day[,exchange]
 - [ ] 每行都有 `source`、`ingested_at`、`data_version`。
 - [ ] `manifest_hash` 已生成，版本状态为 `published`。
 - [ ] 所有硬质量门禁通过，失败标的有明确记录。
+- [ ] 正式基线 manifest 的 `reference_tables_required=true`，且四类参考表的 Parquet 分区与文件哈希齐全。
 - [ ] DBeaver 可查看 DuckDB 元数据，Parquet 分区和 manifest 可读。
 - [ ] 固定同一 `data_version` 的两次研究复跑得到相同的 manifest hash。
 - [ ] 研究报告明确披露数据版本、来源和原始不复权口径。

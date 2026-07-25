@@ -69,3 +69,30 @@ def test_reference_table_contracts_fail_publish_when_provided_data_is_invalid(tm
     checks = {item.check_name: item for item in catalog.list_quality_results(version.version_id)}
     assert checks["security_master_contract"].passed is False
     assert checks["security_status_master_coverage"].passed is False
+
+
+def test_required_reference_tables_keep_version_as_draft_when_any_table_is_missing(tmp_path):
+    catalog = DataCatalog(tmp_path)
+    version = catalog.create_draft(source="fixture", as_of_date="2020-01-02")
+    bars = _bars().assign(data_version=version.version_id)
+    tables = {
+        "trading_calendar": pd.DataFrame(
+            {"trade_date": ["2020-01-02"], "is_trading_day": [True]}
+        )
+    }
+
+    with pytest.raises(ValueError, match="security_master_required"):
+        QualityGateService(catalog).publish_if_valid(
+            version.version_id,
+            bars,
+            expected_trading_dates=["2020-01-02"],
+            reference_tables=tables,
+            required_reference_tables=True,
+        )
+
+    checks = {item.check_name: item for item in catalog.list_quality_results(version.version_id)}
+    for table_name in ("security_master", "security_status", "corporate_actions"):
+        check = checks[f"{table_name}_required"]
+        assert check.passed is False
+        assert check.severity == "hard"
+    assert catalog.get_version(version.version_id).status == "draft"

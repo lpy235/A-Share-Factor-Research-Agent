@@ -35,6 +35,11 @@ def _build_parser() -> argparse.ArgumentParser:
     importer.add_argument("--security-master-csv", type=Path, help="optional security-master CSV")
     importer.add_argument("--security-status-csv", type=Path, help="optional ST/suspension status CSV")
     importer.add_argument("--corporate-actions-csv", type=Path, help="optional corporate-actions CSV")
+    importer.add_argument(
+        "--require-reference-tables",
+        action="store_true",
+        help="reject publication unless security master, calendar, status, and corporate-actions tables are supplied",
+    )
     importer.add_argument("--source", required=True, help="auditable source name")
     importer.add_argument("--snapshot-ref", required=True, help="export batch, URL, Git commit, or Release reference")
     importer.add_argument("--start-date", required=True, help="inclusive YYYY-MM-DD")
@@ -65,6 +70,7 @@ def _import_csv(args: argparse.Namespace) -> int:
             "reference_table_file_sha256": reference_hashes,
         },
         reference_tables=reference_tables,
+        required_reference_tables=args.require_reference_tables,
     )
     result = service.run(args.start_date, args.end_date, batch_size=args.batch_size)
     version = catalog.get_version(result.data_version)

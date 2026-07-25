@@ -34,6 +34,7 @@ class QualityGateService:
         max_failed_symbol_ratio: float = 0.0,
         manifest_context: dict | None = None,
         reference_tables: dict[str, pd.DataFrame] | None = None,
+        required_reference_tables: bool = False,
     ) -> DataVersion:
         checks = self.evaluate_raw_daily_bars(
             bars,
@@ -44,7 +45,9 @@ class QualityGateService:
         )
         checks.extend(
             self.evaluate_reference_tables(
-                reference_tables or {}, expected_trading_dates=expected_trading_dates
+                reference_tables or {},
+                expected_trading_dates=expected_trading_dates,
+                required_reference_tables=required_reference_tables,
             )
         )
         for check in checks:
@@ -61,33 +64,64 @@ class QualityGateService:
             raise ValueError(f"quality gates failed: {names}")
         return self.catalog.publish(
             version_id,
-            manifest={**(manifest_context or {}), "quality_checks": [asdict(check) for check in checks]},
+            manifest={
+                **(manifest_context or {}),
+                "reference_tables_required": required_reference_tables,
+                "quality_checks": [asdict(check) for check in checks],
+            },
         )
 
     def evaluate_reference_tables(
-        self, tables: dict[str, pd.DataFrame], *, expected_trading_dates: Iterable[str]
+        self,
+        tables: dict[str, pd.DataFrame],
+        *,
+        expected_trading_dates: Iterable[str],
+        required_reference_tables: bool = False,
     ) -> list[QualityCheck]:
         """Check optional reference-table contracts before publishing a version.
 
-        Security master and trading calendar are required for a production
-        baseline, but are warnings for the current bars-only CSV entry point.
-        Once provided, malformed reference data is a hard publication failure.
+        Missing tables are warnings for the bars-only rehearsal entry point.
+        A formal baseline can explicitly require all four reference tables;
+        absent required tables then prevent publication. Once provided,
+        malformed reference data is always a hard publication failure.
         """
         checks: list[QualityCheck] = []
         security_master = tables.get("security_master")
         calendar = tables.get("trading_calendar")
         status = tables.get("security_status")
         actions = tables.get("corporate_actions")
-        checks.append(self._optional_table_check("security_master", security_master, self._security_master_invalid))
+        checks.append(
+            self._optional_table_check(
+                "security_master",
+                security_master,
+                self._security_master_invalid,
+                required=required_reference_tables,
+            )
+        )
         checks.append(
             self._optional_table_check(
                 "trading_calendar",
                 calendar,
                 lambda frame: self._calendar_invalid(frame, expected_trading_dates),
+                required=required_reference_tables,
             )
         )
-        checks.append(self._optional_table_check("security_status", status, self._security_status_invalid))
-        checks.append(self._optional_table_check("corporate_actions", actions, self._corporate_actions_invalid))
+        checks.append(
+            self._optional_table_check(
+                "security_status",
+                status,
+                self._security_status_invalid,
+                required=required_reference_tables,
+            )
+        )
+        checks.append(
+            self._optional_table_check(
+                "corporate_actions",
+                actions,
+                self._corporate_actions_invalid,
+                required=required_reference_tables,
+            )
+        )
         if security_master is not None and status is not None:
             master_symbols = set(security_master.get("symbol", pd.Series(dtype="string")).dropna().astype(str))
             status_symbols = set(status.get("symbol", pd.Series(dtype="string")).dropna().astype(str))
@@ -96,8 +130,12 @@ class QualityGateService:
         return checks
 
     @staticmethod
-    def _optional_table_check(name: str, frame: pd.DataFrame | None, validator) -> QualityCheck:
+    def _optional_table_check(
+        name: str, frame: pd.DataFrame | None, validator, *, required: bool
+    ) -> QualityCheck:
         if frame is None:
+            if required:
+                return QualityCheck(f"{name}_required", False, 1)
             return QualityCheck(f"{name}_contract", True, 0, severity="warning")
         invalid = validator(frame)
         return QualityCheck(f"{name}_contract", invalid == 0, invalid)

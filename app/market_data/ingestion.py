@@ -25,6 +25,7 @@ class BackfillService:
         max_failed_symbol_ratio: float = 0.0,
         manifest_context: dict | None = None,
         reference_tables: dict[str, pd.DataFrame] | None = None,
+        required_reference_tables: bool = False,
     ) -> None:
         if max_retries < 0:
             raise ValueError("max_retries must not be negative")
@@ -39,6 +40,7 @@ class BackfillService:
         self.max_failed_symbol_ratio = max_failed_symbol_ratio
         self.manifest_context = manifest_context
         self.reference_tables = reference_tables or {}
+        self.required_reference_tables = required_reference_tables
         self._reference_table_partitions: dict[str, list[str]] = {}
 
     def run(
@@ -93,6 +95,7 @@ class BackfillService:
                     "reference_table_partitions": self._reference_table_partitions,
                 },
                 reference_tables=self.reference_tables,
+                required_reference_tables=self.required_reference_tables,
             )
         except ValueError:
             return self.catalog.update_ingest_run(
