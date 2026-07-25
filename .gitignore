@@ -11,6 +11,7 @@ dist/
 *.egg-info/
 .env
 runs.db
+factor_registry.db
 uploaded_docs/
 data_cache/
 logs/
