@@ -96,6 +96,11 @@ class FactorRegistryStore:
         item["status"] = item["decisions"][-1]["status"]
         return item
 
+    def list(self) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute("SELECT version_id FROM factor_versions ORDER BY created_at DESC").fetchall()
+        return [self.get(row["version_id"]) for row in rows]
+
     def _insert_decision(
         self, conn: sqlite3.Connection, version_id: str, status: str, decision_maker: str, reason: str
     ) -> None:
