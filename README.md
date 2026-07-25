@@ -179,6 +179,7 @@ Market data may provide `in_universe`, `is_suspended`, `is_st`, `days_since_list
 - [Roadmap](docs/ROADMAP.md)
 - [原始日频数据基线运行手册](docs/market-data-baseline-runbook.md)
 - [原始日频数据源决策记录](docs/market-data-source-decision.md)
+- [日频数据仓资源预算](docs/daily-data-resource-budget.md)
 - [Demo Report](REPORT.md)
 
 Detailed historical specs and implementation plans are kept under `docs/superpowers/`.
