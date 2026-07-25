@@ -14,10 +14,10 @@
 
 **Files:** Create `app/storage/factor_registry.py`; modify `app/storage/db.py`; test `tests/test_factor_registry.py`.
 
-- [ ] Write failing tests for candidate registration, version retrieval and append-only approval/rejection decisions.
-- [ ] Implement `factor_versions` and `factor_decisions` SQLite tables; store specs, evidence, metrics and data lineage as JSON.
-- [ ] Validate statuses against `candidate`, `approved`, `rejected`, `retired`.
-- [ ] Run `.venv/bin/pytest tests/test_factor_registry.py -q`.
+- [x] Write failing tests for candidate registration, version retrieval and append-only approval/rejection decisions.
+- [x] Implement `factor_versions` and `factor_decisions` SQLite tables; store specs, evidence, metrics and data lineage as JSON.
+- [x] Validate statuses against `candidate`, `approved`, `rejected`, `retired`.
+- [x] Run `.venv/bin/pytest tests/test_factor_registry.py -q`.
 
 ### Task 2: Registry API
 

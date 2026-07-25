@@ -30,4 +30,38 @@ def init_db(db_path: str) -> None:
             """
         )
         conn.execute("CREATE INDEX IF NOT EXISTS idx_runs_updated_at ON runs(updated_at DESC)")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS factor_versions (
+                version_id TEXT PRIMARY KEY,
+                factor_name TEXT NOT NULL,
+                formula TEXT NOT NULL,
+                direction TEXT NOT NULL,
+                required_fields_json TEXT NOT NULL,
+                source_evidence_json TEXT NOT NULL,
+                metrics_json TEXT NOT NULL,
+                run_id TEXT NOT NULL,
+                data_version TEXT,
+                manifest_hash TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_factor_versions_name ON factor_versions(factor_name)")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS factor_decisions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                version_id TEXT NOT NULL,
+                status TEXT NOT NULL,
+                decision_maker TEXT NOT NULL,
+                reason TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(version_id) REFERENCES factor_versions(version_id)
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_factor_decisions_version ON factor_decisions(version_id, id)"
+        )
         conn.commit()
