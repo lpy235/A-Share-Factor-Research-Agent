@@ -51,7 +51,7 @@ source,ingested_at,data_version,adjustment
 
 其中 `adjustment` 固定为 `none`。不要在原始表中写入前复权、后复权或除权价格；后续如需研究价格层，必须单独定义变换编号及其父原始版本。
 
-交易日历 CSV 必须包含 `trade_date`；可选的 `is_trading_day` 列可标记非交易日。正式导入通过以下本地命令执行，命令会将行情文件、交易日历文件的 SHA-256 与 `snapshot_ref` 写入版本 manifest：
+交易日历 CSV 必须包含 `trade_date`；可选的 `is_trading_day` 列可标记非交易日。正式导入通过以下本地命令执行，命令会将行情文件、交易日历文件、来源元数据文件的 SHA-256 与 `snapshot_ref` 写入版本 manifest：
 
 ```bash
 python -m app.market_data.cli import-csv \
@@ -60,7 +60,8 @@ python -m app.market_data.cli import-csv \
   --security-master-csv /absolute/path/security_master.csv \
   --security-status-csv /absolute/path/security_status.csv \
   --corporate-actions-csv /absolute/path/corporate_actions.csv \
-  --require-reference-tables \
+  --formal-baseline \
+  --provenance-json /absolute/path/provenance.json \
   --source internal_authorized_export \
   --snapshot-ref internal-export-2026-07-25 \
   --start-date 2020-01-01 \
@@ -70,7 +71,29 @@ python -m app.market_data.cli import-csv \
 
 命令只接受本地文件，质量门禁未通过时返回非零状态且保留草稿版本供排查；不会调用网络或用 fixture 填补缺失数据。
 
-`--require-reference-tables` 是正式全市场基线的强制开关。启用后，证券主表、交易日历、证券状态和公司行为四张表必须全部存在；任一缺失都会以硬质量门禁阻止发布，版本和已写入的 Parquet 保持草稿，供审计与排查。该策略同时写入 manifest 的 `reference_tables_required`。
+`--formal-baseline` 是正式全市场基线的强制开关。它要求 `--provenance-json`，并自动启用四类参考表门禁：证券主表、交易日历、证券状态和公司行为任一缺失都会以硬质量门禁阻止发布，版本和已写入的 Parquet 保持草稿，供审计与排查。该策略同时写入 manifest 的 `formal_baseline=true` 和 `reference_tables_required=true`。
+
+`--provenance-json` 是不含凭据的本地 JSON，导入器会验证其来源名称、快照标识、覆盖日期和不复权声明同本次参数一致，再将完整内容与文件 SHA-256 写入 manifest。它证明操作者提供了可审计证据，但不能自动验证第三方许可证或内部授权的真实性，复核责任仍由 `reviewed_by` 对应人员承担：
+
+```json
+{
+  "schema_version": 1,
+  "source_name": "internal_authorized_export",
+  "snapshot_ref": "internal-export-2026-07-25",
+  "source_location": "internal://approved-exports/ashare-2026-07-25",
+  "authorization_basis": "internal-research-data-authorization",
+  "license_or_terms": "internal research use only",
+  "coverage_start": "2016-01-01",
+  "coverage_end": "2026-07-24",
+  "universe_description": "沪深北 A 股普通股，含已退市证券",
+  "field_definition_ref": "internal-data-dictionary-v1",
+  "price_adjustment": "none",
+  "reviewed_by": "data-governance",
+  "reviewed_at": "2026-07-25"
+}
+```
+
+`--require-reference-tables` 可用于非正式演练的严格参考表检查，但它不替代 `--formal-baseline`，也不会在 manifest 中把版本标记为正式基线。
 
 两标的一年本地演练可不使用该开关，以保留仅验证日线导入和复现能力的入口；这绝不等同于正式全市场基线。
 
@@ -119,7 +142,7 @@ trading_calendar:   trade_date,is_trading_day[,exchange]
 1. 为此次回填确定一个日期范围和唯一数据源快照，预先估算磁盘空间并保留至少 30% 余量。
 2. 创建草稿版本，以可恢复的批次导入方式运行；保留每个失败标的和重试次数，不能以 fixture 补齐失败数据。
 3. 发生中断时只恢复同一导入运行，不创建替代版本或覆盖既有 Parquet 分区。
-4. 回填命令必须包含 `--require-reference-tables`，并检查失败标的比例、交易日覆盖、异常 OHLC、重复行和血缘字段。任何硬门禁失败都不得发布。
+4. 回填命令必须包含 `--formal-baseline --provenance-json <file>`，并检查失败标的比例、交易日覆盖、异常 OHLC、重复行和血缘字段。任何硬门禁失败都不得发布。
 5. 发布成功后冻结该版本和 manifest；后续每日更新必须形成以该版本为父版本的增量子版本，不能修改已发布的历史版本。
 
 ## 日常更新与回滚原则
@@ -135,10 +158,11 @@ trading_calendar:   trade_date,is_trading_day[,exchange]
 - [ ] `manifest_hash` 已生成，版本状态为 `published`。
 - [ ] 所有硬质量门禁通过，失败标的有明确记录。
 - [ ] 正式基线 manifest 的 `reference_tables_required=true`，且四类参考表的 Parquet 分区与文件哈希齐全。
+- [ ] 正式基线 manifest 的 `formal_baseline=true`，含已验证 provenance 内容及其 SHA-256；来源许可真实性已经人工复核。
 - [ ] DBeaver 可查看 DuckDB 元数据，Parquet 分区和 manifest 可读。
 - [ ] 固定同一 `data_version` 的两次研究复跑得到相同的 manifest hash。
 - [ ] 研究报告明确披露数据版本、来源和原始不复权口径。
 
 ## 当前下一步
 
-提供或确认一份可合法使用、可复核的两标的一年 CSV 快照后，执行上述演练并把结果写入基线验收记录。演练成功前，不启动全 A 股 8 至 10 年的正式回填。
+取得一份可合法使用、可复核、覆盖全 A 股 8 至 10 年且包含四类参考表的正式离线快照后，按正式命令完成导入与验收。此前不启动全市场回填，也不将本地两标的公开演练升级为正式基线。

@@ -11,6 +11,7 @@ import pandas as pd
 
 from app.market_data.catalog import DataCatalog
 from app.market_data.ingestion import BackfillService
+from app.market_data.provenance import load_formal_baseline_provenance
 from app.market_data.quality import QualityGateService
 from app.market_data.sources.csv_import import CsvRawDataSource
 from app.market_data.store import MarketDataStore
@@ -40,6 +41,16 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="reject publication unless security master, calendar, status, and corporate-actions tables are supplied",
     )
+    importer.add_argument(
+        "--formal-baseline",
+        action="store_true",
+        help="require provenance evidence and all reference tables for a formal full-market baseline",
+    )
+    importer.add_argument(
+        "--provenance-json",
+        type=Path,
+        help="local provenance JSON required with --formal-baseline",
+    )
     importer.add_argument("--source", required=True, help="auditable source name")
     importer.add_argument("--snapshot-ref", required=True, help="export batch, URL, Git commit, or Release reference")
     importer.add_argument("--start-date", required=True, help="inclusive YYYY-MM-DD")
@@ -51,6 +62,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _import_csv(args: argparse.Namespace) -> int:
+    provenance = _read_formal_baseline_provenance(args)
     source = CsvRawDataSource.from_daily_bars_csv(args.csv, source=args.source)
     expected_dates = _read_expected_trading_dates(args.calendar_csv, args.start_date, args.end_date)
     reference_tables, reference_hashes = _read_reference_tables(args)
@@ -68,9 +80,18 @@ def _import_csv(args: argparse.Namespace) -> int:
             "daily_bars_file_sha256": _sha256(args.csv),
             "calendar_file_sha256": _sha256(args.calendar_csv),
             "reference_table_file_sha256": reference_hashes,
+            "formal_baseline": args.formal_baseline,
+            **(
+                {
+                    "provenance": provenance,
+                    "provenance_file_sha256": _sha256(args.provenance_json),
+                }
+                if provenance is not None
+                else {}
+            ),
         },
         reference_tables=reference_tables,
-        required_reference_tables=args.require_reference_tables,
+        required_reference_tables=args.require_reference_tables or args.formal_baseline,
     )
     result = service.run(args.start_date, args.end_date, batch_size=args.batch_size)
     version = catalog.get_version(result.data_version)
@@ -86,6 +107,22 @@ def _import_csv(args: argparse.Namespace) -> int:
         )
     )
     return 0 if result.status == "published" else 1
+
+
+def _read_formal_baseline_provenance(args: argparse.Namespace) -> dict | None:
+    if args.formal_baseline:
+        if args.provenance_json is None:
+            raise ValueError("--formal-baseline requires --provenance-json")
+        return load_formal_baseline_provenance(
+            args.provenance_json,
+            source_name=args.source,
+            snapshot_ref=args.snapshot_ref,
+            start_date=args.start_date,
+            end_date=args.end_date,
+        )
+    if args.provenance_json is not None:
+        raise ValueError("--provenance-json requires --formal-baseline")
+    return None
 
 
 def _read_reference_tables(args: argparse.Namespace) -> tuple[dict[str, pd.DataFrame], dict[str, str]]:

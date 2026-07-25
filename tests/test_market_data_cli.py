@@ -1,9 +1,28 @@
 import json
 
 import pandas as pd
+import pytest
 
 from app.market_data.catalog import DataCatalog
 from app.market_data.cli import main
+
+
+def _formal_provenance_payload() -> dict:
+    return {
+        "schema_version": 1,
+        "source_name": "authorized_export",
+        "snapshot_ref": "internal-export-2020-01",
+        "source_location": "internal://exports/2020-01",
+        "authorization_basis": "internal research data authorization",
+        "license_or_terms": "internal research use only",
+        "coverage_start": "2020-01-01",
+        "coverage_end": "2020-12-31",
+        "universe_description": "A-share common stocks",
+        "field_definition_ref": "internal-data-dictionary-v1",
+        "price_adjustment": "none",
+        "reviewed_by": "data-governance",
+        "reviewed_at": "2026-07-25",
+    }
 
 
 def test_import_csv_publishes_a_version_with_snapshot_hashes(tmp_path, capsys):
@@ -43,6 +62,7 @@ def test_import_csv_publishes_a_version_with_snapshot_hashes(tmp_path, capsys):
     assert exit_code == 0
     assert result["status"] == "published"
     assert result["manifest_hash"]
+    assert manifest["formal_baseline"] is False
     assert manifest["snapshot_ref"] == "internal-export-2020-01"
     assert len(manifest["daily_bars_file_sha256"]) == 64
     assert len(manifest["calendar_file_sha256"]) == 64
@@ -54,6 +74,7 @@ def test_import_csv_persists_reference_tables_and_their_hashes(tmp_path, capsys)
     master_path = tmp_path / "master.csv"
     status_path = tmp_path / "status.csv"
     actions_path = tmp_path / "actions.csv"
+    provenance_path = tmp_path / "provenance.json"
     warehouse_root = tmp_path / "warehouse"
     pd.DataFrame(
         {
@@ -71,13 +92,17 @@ def test_import_csv_persists_reference_tables_and_their_hashes(tmp_path, capsys)
     pd.DataFrame(
         {"symbol": ["000001.SZ"], "ex_date": ["2020-01-02"], "action_type": ["cash_dividend"]}
     ).to_csv(actions_path, index=False)
+    provenance_path.write_text(
+        json.dumps(_formal_provenance_payload()),
+        encoding="utf-8",
+    )
 
     exit_code = main(
         [
             "import-csv", "--csv", str(bars_path), "--calendar-csv", str(calendar_path),
             "--security-master-csv", str(master_path), "--security-status-csv", str(status_path),
             "--corporate-actions-csv", str(actions_path), "--source", "authorized_export",
-            "--require-reference-tables",
+            "--formal-baseline", "--provenance-json", str(provenance_path),
             "--snapshot-ref", "internal-export-2020-01", "--start-date", "2020-01-01",
             "--end-date", "2020-01-31", "--warehouse-root", str(warehouse_root),
         ]
@@ -87,12 +112,72 @@ def test_import_csv_persists_reference_tables_and_their_hashes(tmp_path, capsys)
     manifest = DataCatalog(warehouse_root).get_manifest(result["data_version"])["manifest"]
     assert exit_code == 0
     assert manifest["reference_tables_required"] is True
+    assert manifest["formal_baseline"] is True
+    assert manifest["provenance"]["snapshot_ref"] == "internal-export-2020-01"
+    assert len(manifest["provenance_file_sha256"]) == 64
     assert set(manifest["reference_table_file_sha256"]) == {
         "security_master", "security_status", "corporate_actions"
     }
     for table_name in ("security_master", "trading_calendar", "security_status", "corporate_actions"):
         table_dir = warehouse_root / "lake" / table_name / f"data_version={result['data_version']}"
         assert list(table_dir.rglob("*.parquet"))
+
+
+def test_formal_baseline_requires_provenance_json(tmp_path):
+    bars_path = tmp_path / "bars.csv"
+    calendar_path = tmp_path / "calendar.csv"
+    pd.DataFrame(
+        {
+            "symbol": ["000001.SZ"], "trade_date": ["2020-01-02"], "open": [10.0],
+            "high": [10.5], "low": [9.8], "close": [10.2], "volume": [1000], "amount": [10200],
+        }
+    ).to_csv(bars_path, index=False)
+    pd.DataFrame({"trade_date": ["2020-01-02"], "is_trading_day": [True]}).to_csv(calendar_path, index=False)
+
+    with pytest.raises(ValueError, match="--formal-baseline requires --provenance-json"):
+        main(
+            [
+                "import-csv", "--csv", str(bars_path), "--calendar-csv", str(calendar_path),
+                "--formal-baseline", "--source", "authorized_export",
+                "--snapshot-ref", "internal-export-2020-01", "--start-date", "2020-01-01",
+                "--end-date", "2020-01-31", "--warehouse-root", str(tmp_path / "warehouse"),
+            ]
+        )
+
+
+def test_formal_baseline_automatically_requires_reference_tables(tmp_path, capsys):
+    bars_path = tmp_path / "bars.csv"
+    calendar_path = tmp_path / "calendar.csv"
+    provenance_path = tmp_path / "provenance.json"
+    warehouse_root = tmp_path / "warehouse"
+    pd.DataFrame(
+        {
+            "symbol": ["000001.SZ"], "trade_date": ["2020-01-02"], "open": [10.0],
+            "high": [10.5], "low": [9.8], "close": [10.2], "volume": [1000], "amount": [10200],
+        }
+    ).to_csv(bars_path, index=False)
+    pd.DataFrame({"trade_date": ["2020-01-02"], "is_trading_day": [True]}).to_csv(calendar_path, index=False)
+    provenance_path.write_text(json.dumps(_formal_provenance_payload()), encoding="utf-8")
+
+    exit_code = main(
+        [
+            "import-csv", "--csv", str(bars_path), "--calendar-csv", str(calendar_path),
+            "--formal-baseline", "--provenance-json", str(provenance_path),
+            "--source", "authorized_export", "--snapshot-ref", "internal-export-2020-01",
+            "--start-date", "2020-01-01", "--end-date", "2020-01-31",
+            "--warehouse-root", str(warehouse_root),
+        ]
+    )
+
+    result = json.loads(capsys.readouterr().out)
+    checks = {
+        item.check_name: item
+        for item in DataCatalog(warehouse_root).list_quality_results(result["data_version"])
+    }
+    assert exit_code == 1
+    assert result["status"] == "quality_failed"
+    for table_name in ("security_master", "security_status", "corporate_actions"):
+        assert checks[f"{table_name}_required"].passed is False
 
 
 def test_import_csv_requires_all_reference_tables_when_flag_is_enabled(tmp_path, capsys):
