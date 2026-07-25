@@ -133,6 +133,16 @@ def test_research_api_supports_auto_public_sources():
     assert body["factor_specs"][0]["source_url"]
 
 
+def test_research_api_rejects_warehouse_mode_without_data_version():
+    response = TestClient(app).post(
+        "/research/runs",
+        json={"research_topic": "测试", "data_provider": "warehouse"},
+    )
+
+    assert response.status_code == 422
+    assert "data_version" in response.json()["detail"]
+
+
 def test_research_api_supports_vector_retrieval_mode():
     client = TestClient(app)
 

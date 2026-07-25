@@ -470,6 +470,8 @@ def _load_market_data(state: ResearchState, tracer: GraphEventTracer) -> Researc
         provider_name=state.get("data_provider", "fixture"),
         cache_enabled=state.get("cache_enabled", True),
         cache_dir=state.get("market_data_cache_dir", "data_cache"),
+        data_version=state.get("data_version"),
+        warehouse_root=state.get("market_data_root", "market_data"),
     )
     data, symbols, diagnostics = _fetch_market_data_with_fallback(state, selection, tracer)
     if data.empty:
@@ -550,7 +552,7 @@ def _fetch_market_data_with_fallback(
         return data, symbols, diagnostics
     except Exception as exc:
         diagnostics["provider_error"] = str(exc)
-        if selection.provider_name == "fixture" or not state.get("fallback_to_fixture", True):
+        if selection.provider_name in {"fixture", "warehouse"} or not state.get("fallback_to_fixture", True):
             raise
 
         tracer.node_fallback(
@@ -1036,6 +1038,8 @@ def _generate_report(state: ResearchState, tracer: GraphEventTracer) -> Research
         sources=[
             {"source_title": item.get("source_title"), "source_url": item.get("source_url")}
             for item in hypotheses
+    elif provider == "warehouse":
+        data_limitation = "当前报告使用已发布的本地原始日频数据版本，可按 manifest 哈希复现。"
         ],
         factors=state.get("factor_specs", []),
         metrics=state.get("metrics", []),
@@ -1077,9 +1081,12 @@ def _build_backtest_assumptions(
         "commission_bps": state.get("commission_bps", 3.0),
         "stamp_duty_bps": state.get("stamp_duty_bps", 5.0),
         "slippage_bps": state.get("slippage_bps", 5.0),
+        "data_version": diagnostics.get("data_version"),
+        "manifest_hash": diagnostics.get("manifest_hash"),
+        "market_data_source": diagnostics.get("source"),
         "exclude_st": state.get("exclude_st", True),
         "min_listing_days": state.get("min_listing_days", 60),
-        "adjustment": "fixture 模式使用确定性示例日线；AKShare 模式依赖公开接口返回的数据。",
+        "adjustment": "warehouse 模式使用原始不复权日线；其他模式按各自来源披露。",
         "universe_note": "当前股票池最多取前 20 个标的用于可复现实验演示。",
         "oos_split_date": oos_date,
         "oos_split_ratio": "前 70% 样本内 (IS)，后 30% 样本外 (OOS)",

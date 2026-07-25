@@ -275,6 +275,8 @@ Commit: `feat: add daily raw A-share update pipeline`
 
 ### Task 7: Freeze Market Data for Research and Backtests
 
+**状态：已完成（2026-07-25）**
+
 **Files:**
 - Modify: `app/api/research.py`
 - Modify: `app/agents/state.py`
@@ -284,25 +286,25 @@ Commit: `feat: add daily raw A-share update pipeline`
 - Modify: `app/storage/artifacts.py`
 - Create: `tests/test_versioned_market_data_research.py`
 
-- [ ] **Step 1: Write failing API and graph tests**
+- [x] **Step 1: Write failing API and graph tests**
 
 Test that a production-market-data request rejects a missing `data_version`, resolves only a published version, stores the selected version in run configuration and artifacts, and reproduces the same market-data hash when rerun with the same version.
 
-- [ ] **Step 2: Run the focused test and confirm failure**
+- [x] **Step 2: Run the focused test and confirm failure**
 
 Run: `.venv/bin/pytest tests/test_versioned_market_data_research.py -q`
 
 Expected: FAIL because research runs do not accept or record `data_version`.
 
-- [ ] **Step 3: Add version-pinned provider selection**
+- [x] **Step 3: Add version-pinned provider selection**
 
 Introduce `data_version: str | None` into the research request and state. Fixture mode remains allowed for deterministic unit tests; all warehouse-backed data requires a published version. Include the manifest hash and source summary in `market_data_diagnostics`, report assumptions, run configuration, and research bundle.
 
-- [ ] **Step 4: Keep raw and research-price layers separate**
+- [x] **Step 4: Keep raw and research-price layers separate**
 
 Do not silently replace raw fields with adjusted prices. Any future corporate-action transform must expose its transform id and parent raw `data_version`; this task only passes raw daily bars into the existing research pipeline and reports the limitation.
 
-- [ ] **Step 5: Run focused tests and commit**
+- [x] **Step 5: Run focused tests and commit**
 
 Run: `.venv/bin/pytest tests/test_versioned_market_data_research.py tests/test_research_api.py -q`
 

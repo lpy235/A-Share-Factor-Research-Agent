@@ -37,12 +37,14 @@ class ArtifactStore:
         factor_correlation: dict[str, Any] | None = None,
         portfolio_results: dict[str, Any] | None = None,
         backtest_diagnostics: dict[str, Any] | None = None,
+        market_data_metadata: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         backtest_series = backtest_series or {}
         oos_metrics = oos_metrics or []
         factor_correlation = factor_correlation or {}
         portfolio_results = portfolio_results or {}
         backtest_diagnostics = backtest_diagnostics or {}
+        market_data_metadata = market_data_metadata or {}
         run_dir = self._run_dir(run_id)
         run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -66,6 +68,7 @@ class ArtifactStore:
                 "factor_correlation": factor_correlation,
                 "portfolio_results": portfolio_results,
                 "backtest_diagnostics": backtest_diagnostics,
+                "market_data_metadata": market_data_metadata,
                 "report_markdown": report_markdown,
             },
         )

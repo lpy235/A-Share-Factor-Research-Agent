@@ -147,6 +147,10 @@ def render_report(
             f"{backtest_assumptions.get('end_date')}"
         )
         lines.append(f"- 数据源：{backtest_assumptions.get('data_provider')}")
+        if backtest_assumptions.get("data_version"):
+            lines.append(f"- 数据版本：{backtest_assumptions.get('data_version')}")
+            lines.append(f"- Manifest 哈希：{backtest_assumptions.get('manifest_hash')}")
+            lines.append(f"- 原始来源：{backtest_assumptions.get('market_data_source')}")
         lines.append(f"- 调仓频率：{backtest_assumptions.get('rebalance_frequency')}")
         lines.append(f"- 执行模式：{backtest_assumptions.get('execution_mode')}")
         lines.append(f"- 佣金：{backtest_assumptions.get('commission_bps')} bps（买卖双边）")
@@ -179,7 +183,10 @@ def render_report(
         lines.append(f"- {item}")
 
     lines.extend(["", "## 9. 可复现性"])
-    lines.append("- 默认使用确定性的内置示例数据，除非在运行参数中指定其他行情数据源。")
+    if backtest_assumptions.get("data_version"):
+        lines.append("- 本次研究固定引用上述已发布数据版本及其 manifest 哈希。")
+    else:
+        lines.append("- 默认使用确定性的内置示例数据，除非在运行参数中指定其他行情数据源。")
     lines.append("- LLM 抽取未配置或失败时，会回退到确定性的规则抽取流程。")
     return "\n".join(lines)
 

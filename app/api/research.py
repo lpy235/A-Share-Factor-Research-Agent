@@ -42,6 +42,8 @@ class ResearchRunRequest(BaseModel):
     cache_enabled: bool = True
     fallback_to_fixture: bool = True
     market_data_cache_dir: str = "data_cache"
+    data_version: str | None = None
+    market_data_root: str = "market_data"
     execution_mode: Literal["next_open_to_next_open"] = "next_open_to_next_open"
     commission_bps: float = Field(default=3.0, ge=0)
     stamp_duty_bps: float = Field(default=5.0, ge=0)
@@ -56,6 +58,17 @@ class ResearchRunRequest(BaseModel):
 
 @router.post("/runs")
 def create_research_run(request: ResearchRunRequest):
+    if request.data_provider == "warehouse":
+        if not request.data_version:
+            raise HTTPException(status_code=422, detail="warehouse data_provider requires data_version")
+        from app.market_data.catalog import DataCatalog
+
+        try:
+            version = DataCatalog(request.market_data_root).get_version(request.data_version)
+        except KeyError as exc:
+            raise HTTPException(status_code=422, detail="market data version not found") from exc
+        if version.status != "published":
+            raise HTTPException(status_code=422, detail="market data version must be published")
     if request.historical_universe_id:
         try:
             HistoricalUniverseStore().load(request.historical_universe_id)
@@ -146,6 +159,7 @@ def _execute_and_build_response(
             "tradability": state.get("tradability_diagnostics", {}),
             "universe": state.get("universe_diagnostics", {}),
         },
+        market_data_metadata=state.get("market_data_diagnostics", {}),
     )
     response = {
         "run_id": run_id,
@@ -236,6 +250,8 @@ def _build_workflow_state(
         "cache_enabled": request.cache_enabled,
         "fallback_to_fixture": request.fallback_to_fixture,
         "market_data_cache_dir": request.market_data_cache_dir,
+        "data_version": request.data_version,
+        "market_data_root": request.market_data_root,
         "event_db_path": DB_PATH,
         "execution_mode": request.execution_mode,
         "commission_bps": request.commission_bps,
@@ -263,6 +279,7 @@ def _build_run_started_payload(request: ResearchRunRequest, llm_config_summary: 
         "data_provider": request.data_provider,
         "cache_enabled": request.cache_enabled,
         "fallback_to_fixture": request.fallback_to_fixture,
+        "data_version": request.data_version,
         "execution_mode": request.execution_mode,
         "commission_bps": request.commission_bps,
         "stamp_duty_bps": request.stamp_duty_bps,

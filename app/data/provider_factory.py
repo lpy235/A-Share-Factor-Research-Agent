@@ -6,6 +6,7 @@ import pandas as pd
 from app.data.ashare_provider import AkshareAshareDataProvider
 from app.data.cache import DailyBarCache
 from app.data.fixture_provider import FixtureAshareDataProvider
+from app.data.warehouse_provider import WarehouseAshareDataProvider
 
 
 class AShareDataProvider(Protocol):
@@ -73,10 +74,16 @@ def select_data_provider(
     provider_name: str = "fixture",
     cache_enabled: bool = True,
     cache_dir: str = "data_cache",
+    data_version: str | None = None,
+    warehouse_root: str = "market_data",
 ) -> ProviderSelection:
-    normalized = provider_name if provider_name in {"fixture", "akshare"} else "fixture"
+    normalized = provider_name if provider_name in {"fixture", "akshare", "warehouse"} else "fixture"
     if normalized == "akshare":
         provider: AShareDataProvider = AkshareAshareDataProvider()
+    elif normalized == "warehouse":
+        if not data_version:
+            raise ValueError("warehouse provider requires data_version")
+        provider = WarehouseAshareDataProvider(data_version, warehouse_root=warehouse_root)
     else:
         provider = FixtureAshareDataProvider()
 
@@ -87,11 +94,14 @@ def select_data_provider(
         "cache_dir": cache_dir if cache_enabled else None,
         "cache_hits": 0,
         "cache_misses": 0,
+        "data_version": data_version if normalized == "warehouse" else None,
     }
+    if normalized == "warehouse":
+        diagnostics.update(provider.diagnostics)
     if provider_name != normalized:
         diagnostics["fallback_reason"] = "unknown_data_provider"
 
-    if cache_enabled:
+    if cache_enabled and normalized != "warehouse":
         provider = CachedAshareDataProvider(provider, normalized, DailyBarCache(cache_dir))
 
     return ProviderSelection(provider=provider, provider_name=normalized, diagnostics=diagnostics)

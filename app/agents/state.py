@@ -21,7 +21,9 @@ class ResearchState(TypedDict, total=False):
     llm_config: dict
     llm_config_summary: dict
     extraction_diagnostics: dict
-    data_provider: Literal["fixture", "akshare"]
+    data_provider: Literal["fixture", "akshare", "warehouse"]
+    data_version: str | None
+    market_data_root: str
     cache_enabled: bool
     fallback_to_fixture: bool
     market_data_cache_dir: str
