@@ -236,7 +236,7 @@ Expected: PASS.
 
 Commit: `feat: gate data version publication on quality checks`
 
-### Task 6: Daily Incremental Update and Operations (In Progress)
+### Task 6: Daily Incremental Update and Operations (Completed)
 
 **Files:**
 - Create: `app/market_data/daily_update.py`
@@ -255,17 +255,17 @@ Run: `.venv/bin/pytest tests/test_market_data_daily_update.py -q`
 
 Expected: FAIL because `DailyUpdateService` does not exist.
 
-- [ ] **Step 3: Implement one-version-per-successful-update semantics**
+- [x] **Step 3: Implement one-version-per-successful-update semantics**
 
-Current status: child-version creation, non-trading-day skip, incomplete-draft behavior, idempotency and parent-chain reads are complete. Production source calendar integration and operator commands remain.
+Current status: child-version creation, non-trading-day skip, incomplete-draft behavior, idempotency, parent-chain reads and local CSV calendar integration are complete.
 
 Read the latest published version, obtain the next trading date from the versioned calendar, ingest only that date's raw bars and events, run the same quality gates, write a child manifest referencing unchanged parent partitions, then publish the child version atomically.
 
-- [ ] **Step 4: Add operator commands and recovery documentation**
+- [x] **Step 4: Add operator commands and recovery documentation**
 
 Add `make update-raw-ashare` and `make resume-raw-ashare RUN_ID=<id>`. Document disk location, expected runtime, source failure behavior, retry policy, and how to archive a bad draft version without deleting published versions.
 
-- [ ] **Step 5: Run focused tests and commit**
+- [x] **Step 5: Run focused tests and commit**
 
 Run: `.venv/bin/pytest tests/test_market_data_daily_update.py -q`
 

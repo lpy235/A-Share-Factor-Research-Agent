@@ -66,6 +66,28 @@ def test_csv_source_requires_source_metadata_and_unique_raw_keys(tmp_path):
         CsvRawDataSource.from_daily_bars_csv(path, source="team_csv")
 
 
+def test_csv_source_derives_calendar_from_its_daily_snapshot():
+    source = CsvRawDataSource(
+        pd.DataFrame(
+            {
+                "symbol": ["000001.SZ"],
+                "trade_date": ["2020-01-02"],
+                "open": [10.0],
+                "high": [10.5],
+                "low": [9.9],
+                "close": [10.3],
+                "volume": [1000.0],
+                "amount": [10300.0],
+            }
+        ),
+        source="snapshot",
+    )
+
+    calendar = source.fetch_calendar("2020-01-02", "2020-01-02")
+
+    assert bool(calendar.loc[0, "is_trading_day"]) is True
+
+
 def test_legacy_provider_delegates_to_normalized_unadjusted_source():
     class FakeRawSource:
         def fetch_daily_bars(self, symbols, start_date, end_date):

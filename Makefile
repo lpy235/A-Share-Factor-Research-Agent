@@ -2,8 +2,9 @@ PYTHON ?= .venv/bin/python
 UVICORN ?= .venv/bin/uvicorn
 HOST ?= 127.0.0.1
 PORT ?= 8000
+SOURCE ?= snapshot_csv
 
-.PHONY: install test eval compile check run smoke clean-local backfill-raw-ashare resume-raw-ashare
+.PHONY: install test eval compile check run smoke clean-local backfill-raw-ashare resume-raw-ashare update-raw-ashare
 
 install:
 	$(PYTHON) -m pip install -U pip
@@ -34,7 +35,10 @@ clean-local:
 	find app tests -type d -name __pycache__ -prune -exec rm -rf {} +
 
 backfill-raw-ashare:
-	$(PYTHON) scripts/backfill_raw_ashare.py --start $(START) --end $(END)
+	$(PYTHON) scripts/backfill_raw_ashare.py --start $(START) --end $(END) --daily-bars-csv $(DAILY_BARS_CSV) --source $(SOURCE)
 
 resume-raw-ashare:
-	$(PYTHON) -c 'from app.market_data.catalog import DataCatalog; from app.market_data.ingestion import BackfillService; from app.market_data.sources.akshare_raw import AkshareRawDataSource; from app.market_data.store import MarketDataStore; c = DataCatalog(); r = BackfillService(c, MarketDataStore(), AkshareRawDataSource()).resume("$(RUN_ID)"); print(r)'
+	$(PYTHON) scripts/backfill_raw_ashare.py --resume-run-id $(RUN_ID) --daily-bars-csv $(DAILY_BARS_CSV) --source $(SOURCE)
+
+update-raw-ashare:
+	$(PYTHON) scripts/update_raw_ashare.py --trade-date $(TRADE_DATE) --parent-version $(PARENT_VERSION) --daily-bars-csv $(DAILY_BARS_CSV) --source $(SOURCE)

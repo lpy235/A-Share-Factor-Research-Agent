@@ -39,7 +39,12 @@ class CsvRawDataSource:
         raise SourceCapabilityError("CSV source contains daily bars only")
 
     def fetch_calendar(self, start_date: str, end_date: str) -> pd.DataFrame:
-        raise SourceCapabilityError("CSV source contains daily bars only")
+        start = pd.Timestamp(start_date)
+        end = pd.Timestamp(end_date)
+        dates = self._daily_bars.loc[
+            self._daily_bars["trade_date"].between(start, end), "trade_date"
+        ].drop_duplicates()
+        return pd.DataFrame({"trade_date": dates, "is_trading_day": True}).reset_index(drop=True)
 
     def fetch_security_status(self, start_date: str, end_date: str) -> pd.DataFrame:
         raise SourceCapabilityError("CSV source contains daily bars only")
