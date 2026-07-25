@@ -420,7 +420,28 @@
         <aside class="right-panel" aria-label="接口与工作流追踪">
           <section class="panel-section">
             <div class="section-heading compact"><div><p class="eyebrow">因子库</p><h2>人工决策</h2></div></div>
+            <button id="register-current-run" class="secondary-action full-width" type="button">
+              将当前已选因子登记为候选
+            </button>
+            <p id="registry-notice" class="form-note">打开当前或历史研究运行后可登记通过门禁的因子。</p>
             <div id="factor-registry" class="history-list empty-state">暂无已登记候选因子。</div>
+            <form id="factor-decision-form" class="decision-form hidden">
+              <p id="decision-target" class="form-note">选择一个已登记因子后记录人工决策。</p>
+              <label class="field">
+                <span>人工状态</span>
+                <select id="decision-status">
+                  <option value="approved">批准</option>
+                  <option value="rejected">拒绝</option>
+                  <option value="retired">废弃</option>
+                </select>
+              </label>
+              <label class="field"><span>决策人</span><input id="decision-maker" type="text" value="portfolio_manager" required /></label>
+              <label class="field"><span>决策理由</span><textarea id="decision-reason" rows="3" required></textarea></label>
+              <div class="decision-actions">
+                <button class="secondary-action" type="submit">保存人工决策</button>
+                <button id="cancel-decision" class="ghost-action" type="button">取消</button>
+              </div>
+            </form>
           </section>
           <section class="panel-section api-panel">
             <div class="section-heading compact">

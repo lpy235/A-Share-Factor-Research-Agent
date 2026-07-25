@@ -419,6 +419,10 @@ def _should_use_llm(state: ResearchState) -> bool:
 
 
 def _generate_factor_dsl(state: ResearchState, tracer: GraphEventTracer) -> ResearchState:
+    seeded_specs = state.get("factor_specs_seed", [])
+    if seeded_specs:
+        state["factor_specs"] = seeded_specs
+        return state
     hypotheses = [FactorHypothesis(**item) for item in state.get("hypotheses", [])]
     specs = generate_factor_specs(hypotheses)
     if not specs:

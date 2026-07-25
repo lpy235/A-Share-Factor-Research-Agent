@@ -140,6 +140,21 @@ GET /runs/{run_id}/events
 
 Returns node-level LangGraph events ordered by insertion id.
 
+## 因子库与实验
+
+```http
+POST /factor-registry/from-run/{run_id}
+GET  /factor-registry
+POST /factor-registry/{version_id}/decisions
+POST /factor-registry/{version_id}/recommendations
+POST /research-experiments/from-run/{run_id}
+GET  /research-experiments/{experiment_id}
+```
+
+`from-run` 只登记已完成运行中的 `selected_factors`，初始状态始终为 `candidate`。`decisions` 是人工追加记录；PM recommendation 仅保存 `approve`、`reject` 或 `continue_research` 建议，不会改变因子状态。
+
+实验请求体可以设置 `max_candidates`、`max_variation_rounds` 和 `max_backtests`。实验只接受 `warehouse` 数据源且绑定 `data_version` 的运行，并将预算、父因子、变形原因、指标和淘汰原因保存到 SQLite。
+
 ## Stream Trace Events
 
 ```http

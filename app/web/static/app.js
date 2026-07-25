@@ -19,6 +19,10 @@ const rawOutput = document.querySelector("#raw-output");
 const artifactList = document.querySelector("#artifact-list");
 const runHistory = document.querySelector("#run-history");
 const factorRegistry = document.querySelector("#factor-registry");
+const registerCurrentRun = document.querySelector("#register-current-run");
+const registryNotice = document.querySelector("#registry-notice");
+const factorDecisionForm = document.querySelector("#factor-decision-form");
+const decisionTarget = document.querySelector("#decision-target");
 const sourceDiagnostics = document.querySelector("#source-diagnostics");
 const backtestAssumptions = document.querySelector("#backtest-assumptions");
 const longOnlyMetrics = document.querySelector("#long-only-metrics");
@@ -60,6 +64,7 @@ const dataProviderLabels = {
 const LLM_CONFIG_STORAGE_KEY = "ashare-factor-agent-llm-config";
 
 let currentRun = null;
+let activeFactorVersion = null;
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -155,6 +160,10 @@ renderRunConfig(buildRunPayload([]));
 setActiveLaunch("sample");
 loadRunHistory();
 loadFactorRegistry();
+
+registerCurrentRun.addEventListener("click", registerSelectedFactors);
+factorDecisionForm.addEventListener("submit", submitFactorDecision);
+document.querySelector("#cancel-decision").addEventListener("click", closeDecisionForm);
 
 function prepareLaunch(mode) {
   setActiveLaunch(mode);
@@ -408,6 +417,9 @@ function renderRun(run) {
   renderAuditTrail(run.audit_trail || []);
   reportOutput.textContent = run.report_markdown || "接口未返回研究报告。";
   rawOutput.textContent = JSON.stringify(run, null, 2);
+  registryNotice.textContent = run.selected_factors.length
+    ? `当前运行含 ${run.selected_factors.length} 个通过门禁的因子，可登记为候选。`
+    : "当前运行没有通过门禁的因子，不能登记到因子库。";
 }
 
 function renderRunHistory(runs) {
@@ -439,22 +451,78 @@ async function loadFactorRegistry() {
     const factors = body.factors || [];
     factorRegistry.classList.toggle("empty-state", factors.length === 0);
     factorRegistry.innerHTML = factors.length
-      ? factors.map((factor) => `<article class="factor-item"><div class="factor-name"><span>${escapeHtml(factor.factor_name)}</span><span class="factor-badge selected">${escapeHtml(factor.status)}</span></div><code class="formula">${escapeHtml(factor.formula)}</code><p class="factor-meta">数据版本：${escapeHtml(factor.data_version || "未固定")}</p><button class="history-item" type="button" data-factor-version="${escapeHtml(factor.version_id)}">记录人工决策</button></article>`).join("")
+      ? factors.map((factor) => renderRegistryFactor(factor)).join("")
       : "暂无已登记候选因子。";
-    factorRegistry.querySelectorAll("[data-factor-version]").forEach((button) => button.addEventListener("click", () => decideFactor(button.dataset.factorVersion)));
+    factorRegistry.querySelectorAll("[data-factor-version]").forEach((button) => button.addEventListener("click", () => openDecisionForm(button.dataset.factorVersion, button.dataset.factorName)));
+    factorRegistry.querySelectorAll("[data-recommend-factor]").forEach((button) => button.addEventListener("click", () => requestRecommendation(button.dataset.recommendFactor)));
   } catch (error) {
     factorRegistry.textContent = "因子库加载失败。";
   }
 }
 
-async function decideFactor(versionId) {
-  const status = window.prompt("状态：approved、rejected 或 retired", "approved");
-  if (!status) return;
-  const decision_maker = window.prompt("决策人", "portfolio_manager");
-  const reason = window.prompt("决策理由");
-  if (!decision_maker || !reason) return;
-  await postJson(`/factor-registry/${encodeURIComponent(versionId)}/decisions`, { status, decision_maker, reason });
-  await loadFactorRegistry();
+function renderRegistryFactor(factor) {
+  const metric = factor.metrics || {};
+  const recommendation = factor.recommendations?.at(-1);
+  return `<article class="factor-item"><div class="factor-name"><span>${escapeHtml(factor.factor_name)}</span><span class="factor-badge selected">${escapeHtml(factor.status)}</span></div><code class="formula">${escapeHtml(factor.formula)}</code><p class="factor-meta">数据版本：${escapeHtml(factor.data_version || "未固定")}</p><p class="factor-meta">OOS Rank IC：${escapeHtml(metric.mean_rank_ic_oos ?? "未记录")} · Walk-forward：${escapeHtml(metric.walk_forward_positive_ratio ?? "未记录")}</p><p class="factor-meta">来源：${escapeHtml(factor.source_evidence?.source_title || "未记录")}</p>${recommendation ? `<p class="factor-meta">PM 建议：${escapeHtml(recommendation.recommendation)}</p>` : ""}<div class="decision-actions"><button class="ghost-action" type="button" data-recommend-factor="${escapeHtml(factor.version_id)}">生成 PM 建议</button><button class="history-item" type="button" data-factor-version="${escapeHtml(factor.version_id)}" data-factor-name="${escapeHtml(factor.factor_name)}">人工决策</button></div></article>`;
+}
+
+async function registerSelectedFactors() {
+  if (!currentRun?.run_id) {
+    registryNotice.textContent = "请先运行或打开一条历史研究记录。";
+    return;
+  }
+  if (!currentRun.selected_factors?.length) {
+    registryNotice.textContent = "当前运行没有通过门禁的因子。";
+    return;
+  }
+  try {
+    const result = await postJson(`/factor-registry/from-run/${encodeURIComponent(currentRun.run_id)}`, {});
+    registryNotice.textContent = `已登记 ${result.registered_count} 个候选因子，等待人工决策。`;
+    await loadFactorRegistry();
+  } catch (error) {
+    registryNotice.textContent = error.message || "登记失败。";
+  }
+}
+
+function openDecisionForm(versionId, factorName) {
+  activeFactorVersion = versionId;
+  decisionTarget.textContent = `正在记录 ${factorName} 的人工决策。`;
+  factorDecisionForm.classList.remove("hidden");
+  document.querySelector("#decision-reason").focus();
+}
+
+function closeDecisionForm() {
+  activeFactorVersion = null;
+  factorDecisionForm.reset();
+  document.querySelector("#decision-maker").value = "portfolio_manager";
+  factorDecisionForm.classList.add("hidden");
+}
+
+async function submitFactorDecision(event) {
+  event.preventDefault();
+  if (!activeFactorVersion) return;
+  try {
+    await postJson(`/factor-registry/${encodeURIComponent(activeFactorVersion)}/decisions`, {
+      status: valueOf("#decision-status"),
+      decision_maker: valueOf("#decision-maker"),
+      reason: valueOf("#decision-reason"),
+    });
+    registryNotice.textContent = "人工决策已追加保存。";
+    closeDecisionForm();
+    await loadFactorRegistry();
+  } catch (error) {
+    registryNotice.textContent = error.message || "保存人工决策失败。";
+  }
+}
+
+async function requestRecommendation(versionId) {
+  try {
+    await postJson(`/factor-registry/${encodeURIComponent(versionId)}/recommendations`, {});
+    registryNotice.textContent = "PM 建议已生成，仅供人工复核，不会改变因子状态。";
+    await loadFactorRegistry();
+  } catch (error) {
+    registryNotice.textContent = error.message || "生成 PM 建议失败。";
+  }
 }
 
 function renderFactor(factor) {

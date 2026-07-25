@@ -271,6 +271,25 @@ input:focus {
   line-height: 1.5;
 }
 
+.full-width {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.decision-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.decision-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .launch-grid {
   display: grid;
   gap: 12px;

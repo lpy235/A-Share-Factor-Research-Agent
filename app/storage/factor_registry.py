@@ -88,18 +88,48 @@ class FactorRegistryStore:
                 WHERE version_id = ? ORDER BY id""",
                 [version_id],
             ).fetchall()
+            recommendations = conn.execute(
+                """SELECT recommendation, reasons_json, evidence_json, created_at
+                FROM factor_recommendations WHERE version_id = ? ORDER BY id""",
+                [version_id],
+            ).fetchall()
         item = dict(row)
         item["required_fields"] = json.loads(item.pop("required_fields_json"))
         item["source_evidence"] = json.loads(item.pop("source_evidence_json"))
         item["metrics"] = json.loads(item.pop("metrics_json"))
         item["decisions"] = [dict(decision) for decision in decisions]
         item["status"] = item["decisions"][-1]["status"]
+        item["recommendations"] = [
+            {
+                "recommendation": recommendation["recommendation"],
+                "reasons": json.loads(recommendation["reasons_json"]),
+                "evidence": json.loads(recommendation["evidence_json"]),
+                "created_at": recommendation["created_at"],
+            }
+            for recommendation in recommendations
+        ]
         return item
 
     def list(self) -> list[dict[str, Any]]:
         with self._connect() as conn:
             rows = conn.execute("SELECT version_id FROM factor_versions ORDER BY created_at DESC").fetchall()
         return [self.get(row["version_id"]) for row in rows]
+
+    def record_recommendation(
+        self, version_id: str, recommendation: str, reasons: list[str], evidence: dict[str, Any]
+    ) -> dict[str, Any]:
+        if recommendation not in {"approve", "reject", "continue_research"}:
+            raise ValueError("invalid recommendation")
+        with self._connect() as conn:
+            if conn.execute("SELECT 1 FROM factor_versions WHERE version_id = ?", [version_id]).fetchone() is None:
+                raise KeyError(f"unknown factor version: {version_id}")
+            conn.execute(
+                """INSERT INTO factor_recommendations(version_id, recommendation, reasons_json, evidence_json)
+                VALUES (?, ?, ?, ?)""",
+                [version_id, recommendation, json.dumps(reasons, ensure_ascii=False), json.dumps(evidence, ensure_ascii=False)],
+            )
+            conn.commit()
+        return self.get(version_id)["recommendations"][-1]
 
     def _insert_decision(
         self, conn: sqlite3.Connection, version_id: str, status: str, decision_maker: str, reason: str

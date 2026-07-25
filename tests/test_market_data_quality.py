@@ -47,3 +47,25 @@ def test_quality_gate_publishes_manifest_only_after_all_hard_checks_pass(tmp_pat
 
     assert published.status == "published"
     assert published.manifest_hash
+
+
+def test_reference_table_contracts_fail_publish_when_provided_data_is_invalid(tmp_path):
+    catalog = DataCatalog(tmp_path)
+    version = catalog.create_draft(source="fixture", as_of_date="2020-01-02")
+    bars = _bars().assign(data_version=version.version_id)
+    tables = {
+        "security_master": pd.DataFrame(
+            {"symbol": ["000001.SZ", "000001.SZ"], "exchange": ["SZSE", "SZSE"], "security_name": ["A", "A"], "listing_date": ["1991-01-01", "1991-01-01"]}
+        ),
+        "trading_calendar": pd.DataFrame({"trade_date": ["2020-01-02"], "is_trading_day": [True]}),
+        "security_status": pd.DataFrame({"symbol": ["UNKNOWN"], "trade_date": ["2020-01-02"], "is_st": [False], "is_suspended": [False]}),
+    }
+
+    with pytest.raises(ValueError, match="security_master_contract"):
+        QualityGateService(catalog).publish_if_valid(
+            version.version_id, bars, expected_trading_dates=["2020-01-02"], reference_tables=tables
+        )
+
+    checks = {item.check_name: item for item in catalog.list_quality_results(version.version_id)}
+    assert checks["security_master_contract"].passed is False
+    assert checks["security_status_master_coverage"].passed is False

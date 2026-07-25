@@ -43,6 +43,7 @@ class ResearchState(TypedDict, total=False):
     chunks: list[dict]
     hypotheses: list[dict]
     factor_specs: list[dict]
+    factor_specs_seed: list[dict]
     validation_results: list[dict]
     market_data_summary: dict
     metrics: list[dict]

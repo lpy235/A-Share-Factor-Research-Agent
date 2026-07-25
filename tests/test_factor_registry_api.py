@@ -28,3 +28,24 @@ def test_register_selected_factor_and_append_human_decision(tmp_path, monkeypatc
     assert registered.json()["registered_count"] == 1
     assert decision.status_code == 200
     assert client.get("/factor-registry").json()["factors"][0]["status"] == "approved"
+
+
+def test_pm_recommendation_is_append_only_and_does_not_change_status(tmp_path, monkeypatch):
+    run_db = tmp_path / "runs.db"
+    init_db(str(run_db))
+    runs = RunStore(str(run_db))
+    runs.save_run(
+        "run_completed", research_topic="test", status="completed", config={"data_version": "v1"},
+        response={"selected_factors": ["momentum"], "metrics": [{"factor_name": "momentum", "mean_rank_ic": 0.03, "mean_rank_ic_oos": 0.02, "walk_forward_positive_ratio": 0.8, "walk_forward_sign_consistent": True}], "long_only_metrics": [{"factor_name": "momentum", "cumulative_cost": 0.01, "max_drawdown": -0.2}], "factor_specs": [{"factor_name": "momentum", "formula": "rank(close)", "direction": "positive", "required_fields": ["close"], "source_title": "report", "source_excerpt": "evidence"}], "market_data_metadata": {"manifest_hash": "b" * 64}},
+    )
+    monkeypatch.setattr(factor_registry, "run_store", runs)
+    monkeypatch.setattr(factor_registry, "registry_store", FactorRegistryStore(tmp_path / "factors.db"))
+    client = TestClient(app)
+
+    version_id = client.post("/factor-registry/from-run/run_completed").json()["factors"][0]["version_id"]
+    response = client.post(f"/factor-registry/{version_id}/recommendations")
+    factor = client.get("/factor-registry").json()["factors"][0]
+
+    assert response.status_code == 200
+    assert factor["status"] == "candidate"
+    assert factor["recommendations"][-1]["recommendation"] == "approve"

@@ -29,6 +29,9 @@ def test_dashboard_index_served():
     assert 'id="source-diagnostics"' in response.text
     assert 'id="backtest-assumptions"' in response.text
     assert 'id="audit-trail"' in response.text
+    assert 'id="register-current-run"' in response.text
+    assert 'id="factor-decision-form"' in response.text
+    assert 'id="decision-status"' in response.text
     assert 'id="commission-bps"' in response.text
     assert 'id="stamp-duty-bps"' in response.text
     assert 'id="slippage-bps"' in response.text
@@ -72,6 +75,8 @@ def test_dashboard_static_assets_served():
     assert "ashare-factor-agent-llm-config" in js_response.text
     assert "readLlmConfig" in js_response.text
     assert "maskSecret" in js_response.text
+    assert "registerSelectedFactors" in js_response.text
+    assert "submitFactorDecision" in js_response.text
     assert "POST" in js_response.text
 
 
