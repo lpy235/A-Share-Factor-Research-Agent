@@ -18,6 +18,7 @@ const traceList = document.querySelector("#trace-list");
 const rawOutput = document.querySelector("#raw-output");
 const artifactList = document.querySelector("#artifact-list");
 const runHistory = document.querySelector("#run-history");
+const factorRegistry = document.querySelector("#factor-registry");
 const sourceDiagnostics = document.querySelector("#source-diagnostics");
 const backtestAssumptions = document.querySelector("#backtest-assumptions");
 const longOnlyMetrics = document.querySelector("#long-only-metrics");
@@ -153,6 +154,7 @@ loadLlmConfig();
 renderRunConfig(buildRunPayload([]));
 setActiveLaunch("sample");
 loadRunHistory();
+loadFactorRegistry();
 
 function prepareLaunch(mode) {
   setActiveLaunch(mode);
@@ -427,6 +429,32 @@ function renderRunHistory(runs) {
   runHistory.querySelectorAll(".history-item").forEach((button) => {
     button.addEventListener("click", () => reopenRun(button.dataset.runId));
   });
+}
+
+async function loadFactorRegistry() {
+  try {
+    const response = await fetch("/factor-registry");
+    if (!response.ok) throw new Error("registry request failed");
+    const body = await response.json();
+    const factors = body.factors || [];
+    factorRegistry.classList.toggle("empty-state", factors.length === 0);
+    factorRegistry.innerHTML = factors.length
+      ? factors.map((factor) => `<article class="factor-item"><div class="factor-name"><span>${escapeHtml(factor.factor_name)}</span><span class="factor-badge selected">${escapeHtml(factor.status)}</span></div><code class="formula">${escapeHtml(factor.formula)}</code><p class="factor-meta">数据版本：${escapeHtml(factor.data_version || "未固定")}</p><button class="history-item" type="button" data-factor-version="${escapeHtml(factor.version_id)}">记录人工决策</button></article>`).join("")
+      : "暂无已登记候选因子。";
+    factorRegistry.querySelectorAll("[data-factor-version]").forEach((button) => button.addEventListener("click", () => decideFactor(button.dataset.factorVersion)));
+  } catch (error) {
+    factorRegistry.textContent = "因子库加载失败。";
+  }
+}
+
+async function decideFactor(versionId) {
+  const status = window.prompt("状态：approved、rejected 或 retired", "approved");
+  if (!status) return;
+  const decision_maker = window.prompt("决策人", "portfolio_manager");
+  const reason = window.prompt("决策理由");
+  if (!decision_maker || !reason) return;
+  await postJson(`/factor-registry/${encodeURIComponent(versionId)}/decisions`, { status, decision_maker, reason });
+  await loadFactorRegistry();
 }
 
 function renderFactor(factor) {
