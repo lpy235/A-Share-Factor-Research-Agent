@@ -314,6 +314,8 @@ Commit: `feat: pin research runs to market data versions`
 
 ### Task 8: Baseline Full-Universe Publication and Acceptance Audit
 
+**状态：进行中（运行手册已完成；等待可复核的两标的一年真实 CSV 演练）。**
+
 **Files:**
 - Create: `docs/market-data-baseline-runbook.md`
 - Modify: `README.md`

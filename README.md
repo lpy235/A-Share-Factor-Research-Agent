@@ -72,7 +72,7 @@ The dashboard default run is deterministic: no OpenAI key, no live data source, 
 - Keyword, vector, and hybrid retrieval over research chunks.
 - Rule-based extraction by default, with optional schema-validated LLM extraction.
 - Restricted Factor DSL with whitelisted fields and operators, strict window semantics, and controlled AST interpretation.
-- Deterministic fixture A-share data plus optional AKShare mode and local CSV cache.
+- Deterministic fixture data、可选 AKShare 演示模式，以及可版本化的本地原始日频数据仓。
 - Factor validation, IS/OOS Rank IC, ICIR, grouped returns, diagnostic long-short metrics, and factor selection.
 - Next-open equal-weight long-only backtest with configurable commission, sell-side stamp duty, slippage, and turnover.
 - Optional ST, listing-age, suspension, price-limit, and registered historical-universe filters with explicit missing-data diagnostics.
@@ -116,6 +116,7 @@ app/api        FastAPI routes for dashboard, documents, universes, runs, and tra
 app/agents     LangGraph workflow, nodes, extraction logic, prompts, schemas
 app/backtest   Factor diagnostics, next-open portfolio simulation, costs, and selection
 app/data       Fixture data, optional AKShare adapter, daily-bar cache
+app/market_data Versioned DuckDB metadata + Parquet raw daily-bar warehouse and quality gates
 app/factor     Restricted Factor DSL, validator, operators, executor
 app/rag        Chunking, keyword retrieval, hashing embeddings, vector retrieval
 app/sources    Public-source policy, discovery, fetching, parsing
@@ -176,6 +177,7 @@ Market data may provide `in_universe`, `is_suspended`, `is_st`, `days_since_list
 - [Interview Demo Guide](docs/INTERVIEW_DEMO.md)
 - [Development Guide](docs/DEVELOPMENT.md)
 - [Roadmap](docs/ROADMAP.md)
+- [原始日频数据基线运行手册](docs/market-data-baseline-runbook.md)
 - [Demo Report](REPORT.md)
 
 Detailed historical specs and implementation plans are kept under `docs/superpowers/`.

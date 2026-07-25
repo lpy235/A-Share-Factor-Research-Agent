@@ -15,7 +15,7 @@ public/uploaded research material
 -> rule or schema-validated LLM factor extraction
 -> restricted Factor DSL generation
 -> DSL validation
--> fixture or AKShare A-share daily data
+-> fixture、演示性 AKShare 或固定版本的本地原始日频数据
 -> factor execution
 -> IC / RankIC / grouped returns / diagnostic long-short metrics
 -> next-open long-only portfolio / turnover / transaction costs
@@ -47,6 +47,7 @@ app/api        FastAPI routers for UI, document/universe upload, research runs, 
 app/agents     LangGraph workflow, node implementations, extraction schemas/prompts
 app/backtest   IC diagnostics, next-open portfolio simulation, costs, selection, and risk metrics
 app/data       Fixture data, optional AKShare adapter, local daily-bar cache
+app/market_data Versioned DuckDB catalog, Parquet raw daily-bar lake, import and quality gates
 app/factor     Restricted Factor DSL, strict validator, operators, controlled AST interpreter
 app/llm        OpenAI-compatible client wrapper
 app/rag        Chunking, keyword retrieval, hashing embeddings, vector/hybrid retrieval
@@ -73,6 +74,14 @@ allow_live_fetch = false
 ```
 
 The system does not execute arbitrary model-generated Python. Factor formulas are validated against a restricted DSL with whitelisted fields and operators.
+
+## Versioned Raw Daily Data Warehouse
+
+Production-oriented research uses `data_provider=warehouse` with a required, already-published `data_version`. The warehouse keeps metadata in DuckDB (`market_data/warehouse.duckdb`) and raw daily bars in Parquet (`market_data/lake/`), with a JSON manifest and content hash for every published version. Each raw bar carries `source`, `ingested_at`, `data_version`, and `adjustment`; quality publication requires `adjustment="none"`.
+
+Published versions are immutable. Daily updates are child versions containing only the new trading-day delta; their manifests point to `parent_version_id`, and the provider resolves the complete parent-child chain when loading a research run. Warehouse loading never falls back to fixture data. The selected version, manifest hash, and source are stored in the report assumptions and artifact bundle so a research run can be replayed against the same input snapshot.
+
+The current baseline runbook is [market-data-baseline-runbook.md](market-data-baseline-runbook.md). It deliberately requires a small, auditable CSV rehearsal before a full-universe historical backfill.
 
 ## Factor DSL Contract
 
