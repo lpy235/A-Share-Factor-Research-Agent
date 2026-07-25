@@ -35,3 +35,26 @@ def test_warehouse_provider_reads_pinned_raw_daily_bars(tmp_path):
     assert bars.index.names == ["symbol", "date"]
     assert bars.loc[("000001.SZ", pd.Timestamp("2020-01-02")), "close"] == 10.3
     assert provider.diagnostics["manifest_hash"] == published.manifest_hash
+
+
+def test_warehouse_provider_uses_first_available_trading_day_for_non_trading_start(tmp_path):
+    catalog = DataCatalog(tmp_path)
+    version = catalog.create_draft(source="fixture", as_of_date="2020-01-02")
+    MarketDataStore(tmp_path).write_raw_daily_bars(
+        pd.DataFrame(
+            {
+                "symbol": ["000001.SZ", "600000.SH"], "trade_date": ["2020-01-02", "2020-01-02"],
+                "open": [10.0, 8.0], "high": [10.5, 8.5], "low": [9.9, 7.9], "close": [10.3, 8.2],
+                "volume": [1000.0, 1200.0], "amount": [10300.0, 9840.0],
+            }
+        ),
+        data_version=version.version_id,
+        source="fixture",
+    )
+    published = catalog.publish(version.version_id, manifest={"tables": {}})
+
+    universe = WarehouseAshareDataProvider(
+        published.version_id, warehouse_root=tmp_path
+    ).get_universe("CSI300", "2020-01-01")
+
+    assert universe == ["000001.SZ", "600000.SH"]

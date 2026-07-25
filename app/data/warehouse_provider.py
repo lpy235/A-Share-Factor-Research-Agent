@@ -27,10 +27,29 @@ class WarehouseAshareDataProvider:
 
     def get_universe(self, universe_name: str, date: str) -> list[str]:
         del universe_name
-        bars = self.store.read_effective_raw_daily_bars(
-            self.catalog, self.data_version, "1900-01-01", date
+        requested = pd.Timestamp(date).normalize()
+        as_of = pd.Timestamp(self.version.as_of_date).normalize()
+        if requested <= as_of:
+            future_bars = self.store.read_effective_raw_daily_bars(
+                self.catalog, self.data_version, str(requested.date()), str(as_of.date())
+            )
+            if not future_bars.empty:
+                first_date = future_bars["trade_date"].min()
+                return sorted(
+                    future_bars.loc[future_bars["trade_date"] == first_date, "symbol"].unique().tolist()
+                )
+
+        # A request after the snapshot's as-of date has no future trading day;
+        # retain the latest known universe rather than silently returning none.
+        historical_bars = self.store.read_effective_raw_daily_bars(
+            self.catalog, self.data_version, "1900-01-01", str(requested.date())
         )
-        return sorted(bars["symbol"].unique().tolist())
+        if historical_bars.empty:
+            return []
+        last_date = historical_bars["trade_date"].max()
+        return sorted(
+            historical_bars.loc[historical_bars["trade_date"] == last_date, "symbol"].unique().tolist()
+        )
 
     def get_daily_bars(
         self, symbols: list[str], start_date: str, end_date: str
