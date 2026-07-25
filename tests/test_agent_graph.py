@@ -1,4 +1,5 @@
 from app.agents.graph import NODE_ORDER, build_research_graph, run_research_workflow
+from app.agents.graph_nodes import _select_factors
 
 
 def test_build_research_graph_invokes_minimal_state():
@@ -173,6 +174,34 @@ def test_node_order_is_stable_and_readable():
         "SelectFactorsNode",
         "GenerateReportNode",
     ]
+
+
+def test_select_factors_rejects_opposite_oos_direction():
+    state = {
+        "warnings": [],
+        "metrics": [
+            {
+                "factor_name": "is_only_factor",
+                "mean_rank_ic": 0.04,
+                "icir": 0.6,
+                "coverage_ratio": 0.9,
+                "missing_ratio": 0.1,
+                "max_drawdown": -0.12,
+                "mean_rank_ic_oos": -0.03,
+                "ic_decay_ratio": 1.0,
+                "walk_forward_positive_ratio": 1.0,
+                "walk_forward_sign_consistent": True,
+                "walk_forward_insufficient_data": False,
+            }
+        ],
+        "_factor_values": {},
+    }
+
+    result = _select_factors(state, None)
+
+    assert result["selected_factors"] == []
+    assert result["combination_backtest"] == {}
+    assert any("oos_direction_mismatch" in warning for warning in result["warnings"])
 
 
 def test_workflow_exposes_cost_aware_long_only_outputs(tmp_path):

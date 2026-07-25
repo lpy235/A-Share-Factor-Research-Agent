@@ -712,6 +712,9 @@ def _run_backtest(state: ResearchState, tracer: GraphEventTracer) -> ResearchSta
         metric["ic_decay_ratio"] = round(ic_decay, 4) if ic_decay is not None else None
         metric["walk_forward_positive_ratio"] = walk_forward["stability"].get("positive_ratio")
         metric["walk_forward_sign_consistent"] = walk_forward["stability"].get("sign_consistent")
+        metric["walk_forward_insufficient_data"] = bool(
+            walk_forward["stability"].get("insufficient_data", False)
+        )
 
         portfolio_is = _run_portfolio_segment(
             factor_is, data_is, factor_directions.get(factor_name, "unknown"), portfolio_config
@@ -949,6 +952,11 @@ def _select_factors(state: ResearchState, tracer: GraphEventTracer) -> ResearchS
             max_drawdown=score.get("max_drawdown", 0.0),
             mean_rank_ic_oos=score.get("mean_rank_ic_oos"),
             ic_decay_ratio=score.get("ic_decay_ratio"),
+            walk_forward_positive_ratio=score.get("walk_forward_positive_ratio"),
+            walk_forward_sign_consistent=score.get("walk_forward_sign_consistent"),
+            walk_forward_insufficient_data=score.get(
+                "walk_forward_insufficient_data", True
+            ),
         )
         for score in state.get("metrics", [])
     ]

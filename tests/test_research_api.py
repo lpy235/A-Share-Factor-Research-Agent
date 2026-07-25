@@ -49,6 +49,8 @@ def test_research_api_returns_v2_compatible_response_and_node_trace():
     assert body["selected_factors"] == ["volume_price_momentum"]
     assert body["metrics"][0]["factor_name"] == "volume_price_momentum"
     assert "mean_rank_ic_oos" in body["metrics"][0]
+    assert "walk_forward_insufficient_data" in body["metrics"][0]
+    assert isinstance(body["metrics"][0]["walk_forward_insufficient_data"], bool)
     assert body["oos_metrics"]
     assert {"labels", "values"}.issubset(body["factor_correlation"])
     assert body["backtest_series"]["volume_price_momentum"]["rank_ic"]
