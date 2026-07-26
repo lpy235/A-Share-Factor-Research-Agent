@@ -1135,7 +1135,7 @@ input:focus {
   display: none;
 }
 
-@media (max-width: 1220px) {
+@media (max-width: 1460px) {
   .workspace-grid {
     grid-template-columns: minmax(300px, 370px) minmax(0, 1fr);
   }

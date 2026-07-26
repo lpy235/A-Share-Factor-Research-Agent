@@ -44,6 +44,10 @@ class ResearchRunRequest(BaseModel):
     market_data_cache_dir: str = "data_cache"
     data_version: str | None = None
     market_data_root: str = "market_data"
+    max_universe_size: int | None = Field(default=None, ge=1)
+    price_adjustment_mode: Literal["raw", "corporate_action_total_return"] = (
+        "corporate_action_total_return"
+    )
     execution_mode: Literal["next_open_to_next_open"] = "next_open_to_next_open"
     commission_bps: float = Field(default=3.0, ge=0)
     stamp_duty_bps: float = Field(default=5.0, ge=0)
@@ -254,6 +258,8 @@ def _build_workflow_state(
         "market_data_cache_dir": request.market_data_cache_dir,
         "data_version": request.data_version,
         "market_data_root": request.market_data_root,
+        "max_universe_size": request.max_universe_size,
+        "price_adjustment_mode": request.price_adjustment_mode,
         "event_db_path": DB_PATH,
         "execution_mode": request.execution_mode,
         "commission_bps": request.commission_bps,
@@ -283,6 +289,8 @@ def _build_run_started_payload(request: ResearchRunRequest, llm_config_summary: 
         "cache_enabled": request.cache_enabled,
         "fallback_to_fixture": request.fallback_to_fixture,
         "data_version": request.data_version,
+        "max_universe_size": request.max_universe_size,
+        "price_adjustment_mode": request.price_adjustment_mode,
         "execution_mode": request.execution_mode,
         "commission_bps": request.commission_bps,
         "stamp_duty_bps": request.stamp_duty_bps,

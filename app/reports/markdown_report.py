@@ -151,6 +151,11 @@ def render_report(
             f"{backtest_assumptions.get('end_date')}"
         )
         lines.append(f"- 数据源：{backtest_assumptions.get('data_provider')}")
+        lines.append(
+            "- 股票池规模："
+            f"可用 {backtest_assumptions.get('available_symbol_count', 0)}，"
+            f"实际使用 {backtest_assumptions.get('selected_symbol_count', 0)}"
+        )
         if backtest_assumptions.get("data_version"):
             lines.append(f"- 数据版本：{backtest_assumptions.get('data_version')}")
             lines.append(f"- Manifest 哈希：{backtest_assumptions.get('manifest_hash')}")
@@ -158,6 +163,22 @@ def render_report(
         lines.append(f"- 调仓频率：{backtest_assumptions.get('rebalance_frequency')}")
         lines.append(f"- 持有期：{backtest_assumptions.get('holding_period_days')} 个交易日")
         lines.append(f"- 因子前瞻收益窗口：{backtest_assumptions.get('forward_return_period')}")
+        adjustment_mode = backtest_assumptions.get("price_adjustment_mode")
+        if adjustment_mode == "corporate_action_total_return":
+            lines.append("- 研究价格：公司行为总回报价")
+            lines.append(
+                "- 公司行为事件："
+                f"{backtest_assumptions.get('corporate_action_event_count', 0)} 条，"
+                f"已应用 {backtest_assumptions.get('corporate_action_applied_event_count', 0)} 条"
+            )
+        elif adjustment_mode == "raw":
+            lines.append("- 研究价格：原始不复权价格")
+        lines.append(f"- 价格处理说明：{backtest_assumptions.get('adjustment')}")
+        lines.append(
+            "- 因子评价采样："
+            f"{backtest_assumptions.get('factor_evaluation_frequency')}，"
+            f"{backtest_assumptions.get('factor_evaluation_signal_count', 0)} 个信号日"
+        )
         lines.append(f"- 执行模式：{backtest_assumptions.get('execution_mode')}")
         lines.append(f"- 佣金：{backtest_assumptions.get('commission_bps')} bps（买卖双边）")
         lines.append(f"- 印花税：{backtest_assumptions.get('stamp_duty_bps')} bps（仅卖出）")

@@ -10,10 +10,11 @@ from pathlib import Path
 import pandas as pd
 
 from app.market_data.catalog import DataCatalog
-from app.market_data.ingestion import BackfillService
+from app.market_data.ingestion import BackfillService, CorporateActionBackfillService
 from app.market_data.provenance import load_formal_baseline_provenance
 from app.market_data.quality import QualityGateService
 from app.market_data.sources.csv_import import CsvRawDataSource
+from app.market_data.sources.akshare_sina_hs import AkshareSinaHsRawDataSource
 from app.market_data.store import MarketDataStore
 
 
@@ -22,6 +23,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "import-csv":
         return _import_csv(args)
+    if args.command == "backfill-akshare-sina":
+        return _backfill_akshare_sina(args)
+    if args.command == "backfill-corporate-actions-cninfo":
+        return _backfill_corporate_actions_cninfo(args)
     parser.error(f"unsupported command: {args.command}")
     return 2
 
@@ -58,6 +63,44 @@ def _build_parser() -> argparse.ArgumentParser:
     importer.add_argument("--warehouse-root", default="market_data", type=Path)
     importer.add_argument("--batch-size", default=100, type=int)
     importer.add_argument("--max-retries", default=0, type=int)
+
+    sina_backfill = subparsers.add_parser(
+        "backfill-akshare-sina",
+        help="backfill currently listed Shanghai/Shenzhen A-shares from AKShare's Sina raw-price endpoint",
+    )
+    sina_backfill.add_argument("--start-date", required=True, help="inclusive YYYY-MM-DD")
+    sina_backfill.add_argument("--end-date", required=True, help="inclusive YYYY-MM-DD")
+    sina_backfill.add_argument("--warehouse-root", default="market_data", type=Path)
+    sina_backfill.add_argument("--batch-size", default=25, type=int)
+    sina_backfill.add_argument("--max-retries", default=2, type=int)
+    sina_backfill.add_argument(
+        "--stop-after-batches",
+        type=int,
+        help="pause after this many batches; use --resume-ingest-run-id to continue",
+    )
+    sina_backfill.add_argument(
+        "--resume-ingest-run-id",
+        help="resume a prior backfill-akshare-sina ingest run in the same warehouse",
+    )
+    sina_backfill.add_argument(
+        "--include-delisted",
+        action="store_true",
+        help="include Shanghai/Shenzhen A-shares from exchange delisting or suspension lists",
+    )
+
+    actions_backfill = subparsers.add_parser(
+        "backfill-corporate-actions-cninfo",
+        help="resumable backfill of CNInfo cash-dividend, bonus-share, and capitalization events",
+    )
+    actions_backfill.add_argument("--parent-version-id", required=True, help="published raw-bar parent version")
+    actions_backfill.add_argument("--start-date", required=True, help="inclusive YYYY-MM-DD")
+    actions_backfill.add_argument("--end-date", required=True, help="inclusive YYYY-MM-DD")
+    actions_backfill.add_argument("--warehouse-root", default="market_data", type=Path)
+    actions_backfill.add_argument("--batch-size", default=25, type=int)
+    actions_backfill.add_argument("--max-retries", default=2, type=int)
+    actions_backfill.add_argument("--request-timeout-seconds", default=30.0, type=float)
+    actions_backfill.add_argument("--stop-after-batches", type=int)
+    actions_backfill.add_argument("--resume-ingest-run-id")
     return parser
 
 
@@ -123,6 +166,115 @@ def _read_formal_baseline_provenance(args: argparse.Namespace) -> dict | None:
     if args.provenance_json is not None:
         raise ValueError("--provenance-json requires --formal-baseline")
     return None
+
+
+def _backfill_akshare_sina(args: argparse.Namespace) -> int:
+    source = AkshareSinaHsRawDataSource(include_delisted=args.include_delisted)
+    calendar = source.fetch_calendar(args.start_date, args.end_date).copy()
+    security_master = source.fetch_security_master(args.end_date)
+    calendar["trade_date"] = pd.to_datetime(calendar["trade_date"], errors="raise")
+    if calendar.empty:
+        raise ValueError("AKShare Sina calendar has no trading dates in the requested range")
+    expected_dates = calendar.loc[calendar["is_trading_day"], "trade_date"].dt.strftime("%Y-%m-%d").tolist()
+    root = args.warehouse_root
+    catalog = DataCatalog(root)
+    universe_scope = "沪深交易所当前在市及退出/暂停上市 A 股" if args.include_delisted else "沪深交易所当前在市 A 股"
+    universe_limitations = (
+        "不含北京市场；交易所退出清单是当前快照，不能替代完整逐日证券状态；"
+        "仅限本机研究，不构成正式授权全 A 股基线。"
+        if args.include_delisted
+        else "不含北京市场；证券清单来自当前可得列表，可能缺失已退市证券，"
+        "存在幸存者偏差；仅限本机研究，不构成正式授权全 A 股基线。"
+    )
+    service = BackfillService(
+        catalog,
+        MarketDataStore(root),
+        source,
+        max_retries=args.max_retries,
+        quality_gate=QualityGateService(catalog),
+        expected_trading_dates=expected_dates,
+        manifest_context={
+            "source_channel": "akshare_stock_zh_a_daily_sina",
+            "akshare_version": _akshare_version(),
+            "universe_scope": universe_scope,
+            "universe_limitations": universe_limitations,
+        },
+        reference_tables={"trading_calendar": calendar, "security_master": security_master},
+    )
+    if args.resume_ingest_run_id:
+        result = service.resume(args.resume_ingest_run_id, stop_after_batches=args.stop_after_batches)
+    else:
+        result = service.run(
+            args.start_date,
+            args.end_date,
+            batch_size=args.batch_size,
+            stop_after_batches=args.stop_after_batches,
+        )
+    version = catalog.get_version(result.data_version)
+    print(
+        json.dumps(
+            {
+                "ingest_run_id": result.ingest_run_id,
+                "data_version": result.data_version,
+                "status": result.status,
+                "manifest_hash": version.manifest_hash,
+                "universe_scope": universe_scope,
+            },
+            ensure_ascii=False,
+        )
+    )
+    return 0 if result.status in {"paused", "published"} else 1
+
+
+def _backfill_corporate_actions_cninfo(args: argparse.Namespace) -> int:
+    root = args.warehouse_root
+    catalog = DataCatalog(root)
+    source = AkshareSinaHsRawDataSource(cninfo_timeout_seconds=args.request_timeout_seconds)
+    service = CorporateActionBackfillService(
+        catalog,
+        MarketDataStore(root),
+        source,
+        max_retries=args.max_retries,
+    )
+    if args.resume_ingest_run_id:
+        result = service.resume(
+            args.resume_ingest_run_id,
+            parent_version_id=args.parent_version_id,
+            stop_after_batches=args.stop_after_batches,
+        )
+    else:
+        result = service.run(
+            parent_version_id=args.parent_version_id,
+            start_date=args.start_date,
+            end_date=args.end_date,
+            batch_size=args.batch_size,
+            stop_after_batches=args.stop_after_batches,
+        )
+    if result.status == "completed":
+        result = service.publish(result.ingest_run_id)
+    version = catalog.get_version(result.data_version)
+    print(
+        json.dumps(
+            {
+                "ingest_run_id": result.ingest_run_id,
+                "data_version": result.data_version,
+                "parent_version_id": result.parent_version_id,
+                "status": result.status,
+                "completed_symbols": result.completed_symbol_count,
+                "total_symbols": len(result.symbols),
+                "manifest_hash": version.manifest_hash,
+                "failed_symbols": len(catalog.list_ingest_errors(result.ingest_run_id)),
+            },
+            ensure_ascii=False,
+        )
+    )
+    return 0 if result.status in {"paused", "published"} else 1
+
+
+def _akshare_version() -> str:
+    import akshare
+
+    return str(akshare.__version__)
 
 
 def _read_reference_tables(args: argparse.Namespace) -> tuple[dict[str, pd.DataFrame], dict[str, str]]:

@@ -476,6 +476,7 @@ def _load_market_data(state: ResearchState, tracer: GraphEventTracer) -> Researc
         cache_dir=state.get("market_data_cache_dir", "data_cache"),
         data_version=state.get("data_version"),
         warehouse_root=state.get("market_data_root", "market_data"),
+        price_adjustment_mode=state.get("price_adjustment_mode", "corporate_action_total_return"),
     )
     data, symbols, diagnostics = _fetch_market_data_with_fallback(state, selection, tracer)
     if data.empty:
@@ -540,16 +541,23 @@ def _fetch_market_data_with_fallback(
 ) -> tuple[pd.DataFrame, list[str], dict[str, Any]]:
     diagnostics = dict(selection.diagnostics)
     try:
-        symbols = selection.provider.get_universe(
+        available_symbols = selection.provider.get_universe(
             state.get("universe", "CSI300"),
             state.get("start_date", "2020-01-01"),
-        )[:20]
+        )
+        symbols, universe_selection = _select_universe_symbols(
+            available_symbols,
+            provider_name=selection.provider_name,
+            max_universe_size=state.get("max_universe_size"),
+        )
         data = selection.provider.get_daily_bars(
             symbols=symbols,
             start_date=state.get("start_date", "2020-01-01"),
             end_date=state.get("end_date", "2020-12-31"),
         )
+        diagnostics.update(getattr(selection.provider, "diagnostics", {}))
         diagnostics.update(_cache_diagnostics(selection.provider))
+        diagnostics.update(universe_selection)
         if data.empty:
             raise ValueError("provider_returned_empty_data")
         diagnostics["fallback_used"] = False
@@ -568,10 +576,15 @@ def _fetch_market_data_with_fallback(
             },
         )
         fixture = FixtureAshareDataProvider()
-        symbols = fixture.get_universe(
+        available_symbols = fixture.get_universe(
             state.get("universe", "CSI300"),
             state.get("start_date", "2020-01-01"),
-        )[:20]
+        )
+        symbols, universe_selection = _select_universe_symbols(
+            available_symbols,
+            provider_name="fixture",
+            max_universe_size=state.get("max_universe_size"),
+        )
         data = fixture.get_daily_bars(
             symbols=symbols,
             start_date=state.get("start_date", "2020-01-01"),
@@ -585,6 +598,7 @@ def _fetch_market_data_with_fallback(
                 "failed_provider": selection.provider_name,
                 "cache_hits": 0,
                 "cache_misses": 0,
+                **universe_selection,
             }
         )
         return data, symbols, diagnostics
@@ -594,6 +608,21 @@ def _cache_diagnostics(provider: Any) -> dict[str, int]:
     if isinstance(provider, CachedAshareDataProvider):
         return {"cache_hits": provider.cache_hits, "cache_misses": provider.cache_misses}
     return {"cache_hits": 0, "cache_misses": 0}
+
+
+def _select_universe_symbols(
+    symbols: list[str], *, provider_name: str, max_universe_size: int | None
+) -> tuple[list[str], dict[str, int | None]]:
+    """Make the demo cap explicit while leaving fixed warehouse research complete."""
+    effective_limit = max_universe_size
+    if effective_limit is None and provider_name != "warehouse":
+        effective_limit = 20
+    selected = symbols if effective_limit is None else symbols[:effective_limit]
+    return selected, {
+        "available_symbol_count": len(symbols),
+        "selected_symbol_count": len(selected),
+        "max_universe_size": effective_limit,
+    }
 
 
 def _execute_factors(state: ResearchState, tracer: GraphEventTracer) -> ResearchState:
@@ -659,6 +688,7 @@ def _run_backtest(state: ResearchState, tracer: GraphEventTracer) -> ResearchSta
         holding_period_days=holding_period_days,
     )
     benchmark_returns = _compute_benchmark_returns(data)
+    factor_evaluation_signal_counts: dict[str, int] = {}
 
     for factor_name, factor in factor_values.items():
         # ------- In-sample -------
@@ -668,8 +698,11 @@ def _run_backtest(state: ResearchState, tracer: GraphEventTracer) -> ResearchSta
             if data_is is not None
             else None
         )
+        evaluation_factor_is, evaluation_returns_is = _sample_holding_period_signals(
+            factor_is, forward_returns_is, holding_period_days
+        )
         is_result = (
-            _backtest_single_factor(factor_name, factor_is, forward_returns_is)
+            _backtest_single_factor(factor_name, evaluation_factor_is, evaluation_returns_is)
             if forward_returns_is is not None
             else {}
         )
@@ -683,8 +716,11 @@ def _run_backtest(state: ResearchState, tracer: GraphEventTracer) -> ResearchSta
             if data_oos is not None
             else None
         )
+        evaluation_factor_oos, evaluation_returns_oos = _sample_holding_period_signals(
+            factor_oos, forward_returns_oos, holding_period_days
+        )
         oos_result = (
-            _backtest_single_factor(factor_name, factor_oos, forward_returns_oos)
+            _backtest_single_factor(factor_name, evaluation_factor_oos, evaluation_returns_oos)
             if forward_returns_oos is not None
             else {}
         )
@@ -729,6 +765,7 @@ def _run_backtest(state: ResearchState, tracer: GraphEventTracer) -> ResearchSta
         metric["walk_forward_insufficient_data"] = bool(
             walk_forward["stability"].get("insufficient_data", False)
         )
+        factor_evaluation_signal_counts[factor_name] = int(len(merged_rank_ic))
 
         portfolio_is = _run_portfolio_segment(
             factor_is, data_is, factor_directions.get(factor_name, "unknown"), portfolio_config
@@ -783,6 +820,18 @@ def _run_backtest(state: ResearchState, tracer: GraphEventTracer) -> ResearchSta
     state["_portfolio_config"] = portfolio_config
     state["_data_is"] = data_is
     state["_data_oos"] = data_oos
+    state["backtest_assumptions"].update(
+        {
+            "factor_evaluation_frequency": (
+                "daily"
+                if holding_period_days == 1
+                else f"every {holding_period_days} trading days"
+            ),
+            "factor_evaluation_sampling": "non_overlapping_rebalance_signal_dates",
+            "factor_evaluation_signal_count": max(factor_evaluation_signal_counts.values(), default=0),
+            "factor_evaluation_signal_counts": factor_evaluation_signal_counts,
+        }
+    )
 
     # Compute factor correlation matrix
     if len(factor_values) >= 2:
@@ -889,6 +938,25 @@ def _clip_series_to_data(series: pd.Series, data: pd.DataFrame) -> pd.Series:
     series_dates = series.index.get_level_values("date")
     keep = series_dates.isin(data_dates)
     return series.loc[keep].copy()
+
+
+def _sample_holding_period_signals(
+    factor: pd.Series, forward_returns: pd.Series | None, holding_period_days: int
+) -> tuple[pd.Series, pd.Series]:
+    """Keep non-overlapping factor-evaluation dates aligned with portfolio rebalances."""
+    if forward_returns is None:
+        return factor, pd.Series(dtype=float)
+    if holding_period_days < 1:
+        raise ValueError("holding_period_days must be at least 1")
+    available_dates = pd.DatetimeIndex(
+        forward_returns.dropna().index.get_level_values("date").unique()
+    ).sort_values()
+    signal_dates = available_dates[::holding_period_days]
+    factor_dates = factor.index.get_level_values("date")
+    return (
+        factor.loc[factor_dates.isin(signal_dates)].copy(),
+        forward_returns.loc[forward_returns.index.get_level_values("date").isin(signal_dates)].copy(),
+    )
 
 
 def _merge_series(
@@ -1095,6 +1163,14 @@ def _build_backtest_assumptions(
     oos_date = state.get("_oos_split_date", "")
     holding_period_days = int(state.get("holding_period_days", 1))
     period_unit = "trading day" if holding_period_days == 1 else "trading days"
+    price_adjustment_mode = diagnostics.get(
+        "price_adjustment_mode", state.get("price_adjustment_mode", "corporate_action_total_return")
+    )
+    adjustment_label = (
+        "公司行为总回报价（现金分红、送股和转增以固定数据版本事件派生）"
+        if price_adjustment_mode == "corporate_action_total_return"
+        else "原始不复权价格"
+    )
     return {
         "universe": state.get("universe", "CSI300"),
         "start_date": state.get("start_date", "2020-01-01"),
@@ -1104,11 +1180,23 @@ def _build_backtest_assumptions(
         "manifest_hash": diagnostics.get("manifest_hash"),
         "market_data_source": diagnostics.get("source"),
         "fallback_used": bool(diagnostics.get("fallback_used", False)),
+        "available_symbol_count": int(diagnostics.get("available_symbol_count", 0)),
+        "selected_symbol_count": int(diagnostics.get("selected_symbol_count", 0)),
+        "max_universe_size": diagnostics.get("max_universe_size"),
+        "price_adjustment_mode": price_adjustment_mode,
+        "corporate_action_event_count": int(diagnostics.get("event_count", 0)),
+        "corporate_action_applied_event_count": int(diagnostics.get("applied_event_count", 0)),
+        "corporate_action_skipped_event_count": int(diagnostics.get("skipped_event_count", 0)),
         "rebalance_frequency": (
             "daily" if holding_period_days == 1 else f"every {holding_period_days} trading days"
         ),
         "holding_period_days": holding_period_days,
         "forward_return_period": f"{holding_period_days} {period_unit}",
+        "factor_evaluation_frequency": (
+            "daily" if holding_period_days == 1 else f"every {holding_period_days} trading days"
+        ),
+        "factor_evaluation_sampling": "non_overlapping_rebalance_signal_dates",
+        "factor_evaluation_signal_count": 0,
         "transaction_cost_bps": 0,
         "execution_mode": state.get("execution_mode", "next_open_to_next_open"),
         "commission_bps": state.get("commission_bps", 3.0),
@@ -1116,8 +1204,12 @@ def _build_backtest_assumptions(
         "slippage_bps": state.get("slippage_bps", 5.0),
         "exclude_st": state.get("exclude_st", True),
         "min_listing_days": state.get("min_listing_days", 60),
-        "adjustment": "warehouse 模式使用原始不复权日线；其他模式按各自来源披露。",
-        "universe_note": "当前股票池最多取前 20 个标的用于可复现实验演示。",
+        "adjustment": adjustment_label,
+        "universe_note": (
+            "使用固定版本中的全部可用标的。"
+            if diagnostics.get("max_universe_size") is None
+            else f"股票池限制为前 {diagnostics.get('max_universe_size')} 个可用标的。"
+        ),
         "oos_split_date": oos_date,
         "oos_split_ratio": "前 70% 样本内 (IS)，后 30% 样本外 (OOS)",
         "benchmark": "universe_equal_weight_open_to_open",

@@ -64,6 +64,8 @@ def run_research_workflow(state: ResearchState) -> ResearchState:
         "cache_enabled": True,
         "fallback_to_fixture": True,
         "market_data_cache_dir": "data_cache",
+        "max_universe_size": None,
+        "price_adjustment_mode": "corporate_action_total_return",
         "execution_mode": "next_open_to_next_open",
         "commission_bps": 3.0,
         "stamp_duty_bps": 5.0,

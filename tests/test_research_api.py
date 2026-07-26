@@ -219,6 +219,7 @@ def test_research_api_accepts_realistic_backtest_configuration():
             "exclude_st": False,
             "min_listing_days": 20,
             "holding_period_days": 5,
+            "price_adjustment_mode": "raw",
         },
     )
 
@@ -232,6 +233,24 @@ def test_research_api_accepts_realistic_backtest_configuration():
     assert assumptions["min_listing_days"] == 20
     assert assumptions["holding_period_days"] == 5
     assert assumptions["forward_return_period"] == "5 trading days"
+    assert assumptions["price_adjustment_mode"] == "raw"
+
+
+def test_research_api_defaults_to_declared_corporate_action_total_return_prices():
+    response = TestClient(app).post("/research/runs", json={"research_topic": "test"})
+
+    assert response.status_code == 200
+    assert response.json()["backtest_assumptions"]["price_adjustment_mode"] == (
+        "corporate_action_total_return"
+    )
+
+
+def test_research_api_rejects_non_positive_universe_limit():
+    response = TestClient(app).post(
+        "/research/runs", json={"research_topic": "test", "max_universe_size": 0}
+    )
+
+    assert response.status_code == 422
 
 
 @pytest.mark.parametrize(
@@ -242,6 +261,7 @@ def test_research_api_accepts_realistic_backtest_configuration():
         ("slippage_bps", -1),
         ("min_listing_days", -1),
         ("holding_period_days", 0),
+        ("price_adjustment_mode", "qfq"),
         ("execution_mode", "same_close"),
     ],
 )

@@ -61,7 +61,7 @@ document_ids: uploaded document ids for upload or hybrid mode
 retrieval_mode: keyword | vector | hybrid
 extraction_mode: rule | llm | hybrid
 enable_llm_extraction: explicit LLM opt-in
-data_provider: fixture | akshare
+data_provider: fixture | akshare | warehouse
 cache_enabled: enable local daily-bar CSV cache
 fallback_to_fixture: use fixture data if live provider fails
 allow_live_fetch: explicit public URL fetch opt-in
@@ -72,6 +72,8 @@ slippage_bps: bilateral slippage, default 5
 exclude_st: exclude ST stocks when the field is available
 min_listing_days: minimum listing age, default 60
 holding_period_days: 1-60 trading days, used for both forward-return evaluation and portfolio rebalance interval, default 1
+price_adjustment_mode: raw | corporate_action_total_return; the latter is the default and derives research prices from corporate-action events without overwriting raw daily bars
+max_universe_size: optional positive cap; warehouse uses every available symbol when omitted, fixture and live-demo providers default to 20
 historical_universe_id: optional id returned by POST /universes
 async_run: if true, return immediately with {run_id, status:"running"} and run the workflow in a background worker; poll GET /runs/{run_id} until status is completed or failed (default false, synchronous)
 ```

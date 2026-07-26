@@ -38,6 +38,7 @@ def test_dashboard_index_served():
     assert 'id="exclude-st"' in response.text
     assert 'id="min-listing-days"' in response.text
     assert 'id="holding-period-days"' in response.text
+    assert 'id="price-adjustment-mode"' in response.text
     assert 'id="long-only-metrics"' in response.text
     assert 'id="tradability-diagnostics"' in response.text
     assert 'id="llm-provider"' in response.text
@@ -59,6 +60,7 @@ def test_dashboard_static_assets_served():
 
     assert css_response.status_code == 200
     assert ".workspace-grid" in css_response.text
+    assert "@media (max-width: 1460px)" in css_response.text
     assert ".launch-grid" in css_response.text
     assert ".api-panel" in css_response.text
     assert ".artifact-list" in css_response.text
@@ -78,6 +80,7 @@ def test_dashboard_static_assets_served():
     assert "maskSecret" in js_response.text
     assert "registerSelectedFactors" in js_response.text
     assert "submitFactorDecision" in js_response.text
+    assert "price_adjustment_mode" in js_response.text
     assert "POST" in js_response.text
 
 

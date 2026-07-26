@@ -1,5 +1,7 @@
+import pandas as pd
+
 from app.agents.graph import NODE_ORDER, build_research_graph, run_research_workflow
-from app.agents.graph_nodes import _select_factors
+from app.agents.graph_nodes import _select_factors, _select_universe_symbols
 
 
 def test_build_research_graph_invokes_minimal_state():
@@ -245,6 +247,50 @@ def test_workflow_uses_the_predeclared_holding_period_for_evaluation_and_portfol
     assert state["backtest_assumptions"]["holding_period_days"] == 5
     assert state["backtest_assumptions"]["forward_return_period"] == "5 trading days"
     assert state["tradability_diagnostics"]["volume_price_momentum"]["holding_period_days"] == 5
+
+
+def test_workflow_samples_factor_metrics_on_holding_period_signal_dates(tmp_path):
+    state = run_research_workflow(
+        {
+            "run_id": "test_holding_period_signal_cadence",
+            "research_topic": "A股量价类动量因子",
+            "source_mode": "upload",
+            "start_date": "2020-01-01",
+            "end_date": "2020-06-30",
+            "cache_enabled": False,
+            "market_data_cache_dir": str(tmp_path),
+            "holding_period_days": 5,
+        }
+    )
+
+    points = state["backtest_series"]["volume_price_momentum"]["rank_ic"]
+    dates = pd.to_datetime([point["date"] for point in points])
+
+    assert state["backtest_assumptions"]["factor_evaluation_frequency"] == "every 5 trading days"
+    assert state["backtest_assumptions"]["factor_evaluation_signal_count"] == len(points)
+    assert len(points) > 2
+    assert (dates[1:] - dates[:-1]).days.min() >= 5
+
+
+def test_warehouse_universe_is_not_silently_limited_to_demo_size():
+    symbols = [f"{number:06d}.SZ" for number in range(30)]
+
+    warehouse_symbols, warehouse_diagnostics = _select_universe_symbols(
+        symbols, provider_name="warehouse", max_universe_size=None
+    )
+    fixture_symbols, fixture_diagnostics = _select_universe_symbols(
+        symbols, provider_name="fixture", max_universe_size=None
+    )
+
+    assert warehouse_symbols == symbols
+    assert warehouse_diagnostics == {
+        "available_symbol_count": 30,
+        "selected_symbol_count": 30,
+        "max_universe_size": None,
+    }
+    assert fixture_symbols == symbols[:20]
+    assert fixture_diagnostics["selected_symbol_count"] == 20
+    assert fixture_diagnostics["max_universe_size"] == 20
 
 
 def test_is_and_oos_portfolios_each_start_flat(tmp_path):

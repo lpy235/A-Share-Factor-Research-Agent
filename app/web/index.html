@@ -105,7 +105,18 @@
                     <select id="data-provider" name="data_provider">
                       <option value="fixture" selected>内置示例数据</option>
                       <option value="akshare">AKShare</option>
+                      <option value="warehouse">固定数据版本</option>
                     </select>
+                  </label>
+
+                  <label class="field">
+                    <span>数据版本</span>
+                    <input id="data-version" name="data_version" placeholder="仓库模式必填" />
+                  </label>
+
+                  <label class="field">
+                    <span>数据仓目录</span>
+                    <input id="market-data-root" name="market_data_root" value="market_data" />
                   </label>
 
                   <label class="field">
@@ -156,6 +167,19 @@
                   <label class="field">
                     <span>持有期（交易日）</span>
                     <input id="holding-period-days" type="number" min="1" max="60" step="1" value="1" />
+                  </label>
+
+                  <label class="field">
+                    <span>股票池上限</span>
+                    <input id="max-universe-size" type="number" min="1" step="1" placeholder="仓库默认全量" />
+                  </label>
+
+                  <label class="field">
+                    <span>研究价格</span>
+                    <select id="price-adjustment-mode" name="price_adjustment_mode">
+                      <option value="corporate_action_total_return" selected>公司行为总回报</option>
+                      <option value="raw">原始不复权</option>
+                    </select>
                   </label>
                 </div>
 

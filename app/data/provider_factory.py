@@ -76,6 +76,7 @@ def select_data_provider(
     cache_dir: str = "data_cache",
     data_version: str | None = None,
     warehouse_root: str = "market_data",
+    price_adjustment_mode: str = "corporate_action_total_return",
 ) -> ProviderSelection:
     normalized = provider_name if provider_name in {"fixture", "akshare", "warehouse"} else "fixture"
     if normalized == "akshare":
@@ -83,7 +84,11 @@ def select_data_provider(
     elif normalized == "warehouse":
         if not data_version:
             raise ValueError("warehouse provider requires data_version")
-        provider = WarehouseAshareDataProvider(data_version, warehouse_root=warehouse_root)
+        provider = WarehouseAshareDataProvider(
+            data_version,
+            warehouse_root=warehouse_root,
+            price_adjustment_mode=price_adjustment_mode,
+        )
     else:
         provider = FixtureAshareDataProvider()
 
@@ -95,6 +100,7 @@ def select_data_provider(
         "cache_hits": 0,
         "cache_misses": 0,
         "data_version": data_version if normalized == "warehouse" else None,
+        "price_adjustment_mode": price_adjustment_mode,
     }
     if normalized == "warehouse":
         diagnostics.update(provider.diagnostics)

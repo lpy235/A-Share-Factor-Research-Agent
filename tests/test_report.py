@@ -48,6 +48,9 @@ def test_report_discloses_realistic_timing_costs_and_universe_limitations():
             "slippage_bps": 5,
             "holding_period_days": 5,
             "forward_return_period": "5 trading days",
+            "price_adjustment_mode": "corporate_action_total_return",
+            "corporate_action_event_count": 12,
+            "corporate_action_applied_event_count": 10,
         },
         long_only_metrics=[
             {
@@ -71,6 +74,8 @@ def test_report_discloses_realistic_timing_costs_and_universe_limitations():
     assert "印花税：5 bps" in report
     assert "持有期：5 个交易日" in report
     assert "因子前瞻收益窗口：5 trading days" in report
+    assert "研究价格：公司行为总回报价" in report
+    assert "公司行为事件：12 条，已应用 10 条" in report
     assert "可执行多头组合" in report
     assert "生存者偏差" in report
     assert "未应用字段：limit_down" in report

@@ -71,6 +71,51 @@ class QualityGateService:
             },
         )
 
+    def publish_reference_child_if_valid(
+        self,
+        version_id: str,
+        *,
+        expected_trading_dates: Iterable[str],
+        reference_tables: dict[str, pd.DataFrame],
+        manifest_context: dict,
+        child_raw_daily_bar_count: int,
+    ) -> DataVersion:
+        """Publish a reference-table child without re-writing its parent's raw bars."""
+        checks = [
+            QualityCheck(
+                "parent_raw_daily_bars_immutable",
+                child_raw_daily_bar_count == 0,
+                child_raw_daily_bar_count,
+            )
+        ]
+        checks.extend(
+            self.evaluate_reference_tables(
+                reference_tables,
+                expected_trading_dates=expected_trading_dates,
+                required_reference_tables=False,
+            )
+        )
+        for check in checks:
+            self.catalog.record_quality_result(
+                version_id,
+                check_name=check.check_name,
+                passed=check.passed,
+                affected_count=check.affected_count,
+                severity=check.severity,
+            )
+        failures = [check for check in checks if check.severity == "hard" and not check.passed]
+        if failures:
+            names = ", ".join(check.check_name for check in failures)
+            raise ValueError(f"quality gates failed: {names}")
+        return self.catalog.publish(
+            version_id,
+            manifest={
+                **manifest_context,
+                "reference_tables_required": False,
+                "quality_checks": [asdict(check) for check in checks],
+            },
+        )
+
     def evaluate_reference_tables(
         self,
         tables: dict[str, pd.DataFrame],
@@ -127,6 +172,11 @@ class QualityGateService:
             status_symbols = set(status.get("symbol", pd.Series(dtype="string")).dropna().astype(str))
             unknown = len(status_symbols - master_symbols)
             checks.append(QualityCheck("security_status_master_coverage", unknown == 0, unknown))
+        if security_master is not None and actions is not None:
+            master_symbols = set(security_master.get("symbol", pd.Series(dtype="string")).dropna().astype(str))
+            action_symbols = set(actions.get("symbol", pd.Series(dtype="string")).dropna().astype(str))
+            unknown = len(action_symbols - master_symbols)
+            checks.append(QualityCheck("corporate_actions_master_coverage", unknown == 0, unknown))
         return checks
 
     @staticmethod
@@ -190,6 +240,7 @@ class QualityGateService:
         invalid = frame.loc[:, sorted(required)].isna().any(axis=1)
         invalid |= pd.to_datetime(frame["ex_date"], errors="coerce").isna()
         invalid |= frame["action_type"].astype("string").str.strip().eq("")
+        invalid |= ~frame["action_type"].isin({"cash_dividend", "bonus_share", "capitalization"})
         invalid |= frame.duplicated(["symbol", "ex_date", "action_type"], keep=False)
         return int(invalid.sum())
 

@@ -6,7 +6,13 @@ from uuid import uuid4
 
 import duckdb
 
-from app.market_data.models import DataVersion, IngestError, IngestRun, QualityResult
+from app.market_data.models import (
+    DataVersion,
+    IngestError,
+    IngestRun,
+    IngestSymbolProgress,
+    QualityResult,
+)
 from app.market_data.paths import MarketDataPaths
 
 
@@ -126,7 +132,14 @@ class DataCatalog:
         return [QualityResult(*row) for row in rows]
 
     def create_ingest_run(
-        self, version_id: str, *, start_date: str, end_date: str, batch_size: int, symbols: list[str]
+        self,
+        version_id: str,
+        *,
+        start_date: str,
+        end_date: str,
+        batch_size: int,
+        symbols: list[str],
+        parent_version_id: str | None = None,
     ) -> IngestRun:
         if batch_size < 1:
             raise ValueError("batch_size must be positive")
@@ -135,14 +148,35 @@ class DataCatalog:
         created_at = _now()
         with self._connect() as conn:
             conn.execute(
-                """INSERT INTO ingest_runs VALUES (?, ?, ?, ?, ?, ?, 0, 'running', ?)""",
-                [run_id, version_id, start_date, end_date, batch_size, json.dumps(symbols), created_at],
+                """
+                INSERT INTO ingest_runs (
+                    ingest_run_id, data_version, start_date, end_date, batch_size,
+                    symbols_json, next_symbol_index, status, created_at, parent_version_id
+                ) VALUES (?, ?, ?, ?, ?, ?, 0, 'running', ?, ?)
+                """,
+                [
+                    run_id,
+                    version_id,
+                    start_date,
+                    end_date,
+                    batch_size,
+                    json.dumps(symbols),
+                    created_at,
+                    parent_version_id,
+                ],
             )
         return self.get_ingest_run(run_id)
 
     def get_ingest_run(self, ingest_run_id: str) -> IngestRun:
         with self._connect() as conn:
-            row = conn.execute("SELECT * FROM ingest_runs WHERE ingest_run_id = ?", [ingest_run_id]).fetchone()
+            row = conn.execute(
+                """
+                SELECT ingest_run_id, data_version, start_date, end_date, batch_size,
+                       symbols_json, next_symbol_index, status, created_at, parent_version_id
+                FROM ingest_runs WHERE ingest_run_id = ?
+                """,
+                [ingest_run_id],
+            ).fetchone()
         if row is None:
             raise KeyError(f"unknown ingest run: {ingest_run_id}")
         return IngestRun(*row[:5], tuple(json.loads(row[5])), *row[6:])
@@ -153,6 +187,65 @@ class DataCatalog:
                 "UPDATE ingest_runs SET next_symbol_index = ?, status = ? WHERE ingest_run_id = ?",
                 [next_symbol_index, status, ingest_run_id],
             )
+        return self.get_ingest_run(ingest_run_id)
+
+    def set_ingest_run_parent(self, ingest_run_id: str, parent_version_id: str) -> IngestRun:
+        if not parent_version_id.strip():
+            raise ValueError("parent_version_id is required")
+        self.get_version(parent_version_id)
+        run = self.get_ingest_run(ingest_run_id)
+        if run.parent_version_id is not None and run.parent_version_id != parent_version_id:
+            raise ValueError("ingest run already belongs to a different parent version")
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE ingest_runs SET parent_version_id = ? WHERE ingest_run_id = ?",
+                [parent_version_id, ingest_run_id],
+            )
+        return self.get_ingest_run(ingest_run_id)
+
+    def complete_ingest_batch(
+        self,
+        ingest_run_id: str,
+        *,
+        next_symbol_index: int,
+        symbol_progress: list[tuple[str, int, str, int]],
+        errors: list[tuple[str, str, int]],
+        status: str = "running",
+    ) -> IngestRun:
+        """Atomically checkpoint a completed batch after its Parquet writes succeed."""
+        completed_at = _now()
+        with self._connect() as conn:
+            conn.execute("BEGIN")
+            try:
+                for symbol, message, attempt_count in errors:
+                    conn.execute(
+                        "INSERT INTO ingest_errors VALUES (?, ?, ?, ?, ?)",
+                        [ingest_run_id, symbol, message, attempt_count, completed_at],
+                    )
+                for symbol, symbol_index, progress_status, action_count in symbol_progress:
+                    conn.execute(
+                        "DELETE FROM ingest_symbol_progress WHERE ingest_run_id = ? AND symbol = ?",
+                        [ingest_run_id, symbol],
+                    )
+                    conn.execute(
+                        "INSERT INTO ingest_symbol_progress VALUES (?, ?, ?, ?, ?, ?)",
+                        [
+                            ingest_run_id,
+                            symbol,
+                            symbol_index,
+                            progress_status,
+                            action_count,
+                            completed_at,
+                        ],
+                    )
+                conn.execute(
+                    "UPDATE ingest_runs SET next_symbol_index = ?, status = ? WHERE ingest_run_id = ?",
+                    [next_symbol_index, status, ingest_run_id],
+                )
+                conn.execute("COMMIT")
+            except Exception:
+                conn.execute("ROLLBACK")
+                raise
         return self.get_ingest_run(ingest_run_id)
 
     def record_ingest_error(
@@ -174,6 +267,33 @@ class DataCatalog:
                 "SELECT * FROM ingest_errors WHERE ingest_run_id = ? ORDER BY recorded_at", [ingest_run_id]
             ).fetchall()
         return [IngestError(*row) for row in rows]
+
+    def list_ingest_symbol_progress(self, ingest_run_id: str) -> list[IngestSymbolProgress]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT ingest_run_id, symbol, symbol_index, status, action_count, completed_at
+                FROM ingest_symbol_progress
+                WHERE ingest_run_id = ?
+                ORDER BY symbol_index
+                """,
+                [ingest_run_id],
+            ).fetchall()
+        return [IngestSymbolProgress(*row) for row in rows]
+
+    def list_failed_ingest_symbol_progress(self, ingest_run_id: str) -> list[IngestSymbolProgress]:
+        """Return symbols whose latest recorded checkpoint is still failed."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT ingest_run_id, symbol, symbol_index, status, action_count, completed_at
+                FROM ingest_symbol_progress
+                WHERE ingest_run_id = ? AND status = 'failed'
+                ORDER BY symbol_index
+                """,
+                [ingest_run_id],
+            ).fetchall()
+        return [IngestSymbolProgress(*row) for row in rows]
 
     def _initialize_schema(self) -> None:
         with self._connect() as conn:
@@ -213,6 +333,20 @@ class DataCatalog:
                     next_symbol_index INTEGER NOT NULL,
                     status VARCHAR NOT NULL,
                     created_at VARCHAR NOT NULL
+                )
+                """
+            )
+            conn.execute("ALTER TABLE ingest_runs ADD COLUMN IF NOT EXISTS parent_version_id VARCHAR")
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS ingest_symbol_progress (
+                    ingest_run_id VARCHAR NOT NULL,
+                    symbol VARCHAR NOT NULL,
+                    symbol_index INTEGER NOT NULL,
+                    status VARCHAR NOT NULL,
+                    action_count INTEGER NOT NULL,
+                    completed_at VARCHAR NOT NULL,
+                    PRIMARY KEY (ingest_run_id, symbol)
                 )
                 """
             )

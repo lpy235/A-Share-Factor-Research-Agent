@@ -108,6 +108,31 @@ trading_calendar:   trade_date,is_trading_day[,exchange]
 
 导入器将交易日历写入 `trading_calendar` 表；缺少 `exchange` 时使用 `--calendar-exchange`（默认 `CN`）。参考表与日线共享相同 `data_version`、`source` 和 `ingested_at`，其 CSV SHA-256 及写入的 Parquet 分区路径会写入 manifest。参考文件一旦提供，其数据契约错误将阻止版本发布。
 
+## AKShare 新浪沪深研究基线
+
+当正式离线快照尚未到位、且东方财富 AKShare 端点在当前网络不可用时，可建立本机、不可再分发的沪深在市 A 股研究基线。该入口调用 AKShare `stock_zh_a_daily(..., adjust="")` 的新浪通道，交易日历来自 `tool_trade_date_hist_sina()`：
+
+```bash
+python -m app.market_data.cli backfill-akshare-sina \
+  --start-date 2016-01-01 \
+  --end-date 2026-07-24 \
+  --warehouse-root market_data \
+  --batch-size 25 \
+  --stop-after-batches 1
+```
+
+命令输出 `ingest_run_id` 后，用相同的日期和数据仓恢复：
+
+```bash
+python -m app.market_data.cli backfill-akshare-sina \
+  --start-date 2016-01-01 \
+  --end-date 2026-07-24 \
+  --warehouse-root market_data \
+  --resume-ingest-run-id ingest_xxx
+```
+
+这不是全 A 股，也不是 `--formal-baseline` 的替代品。新浪通道不覆盖北京市场；证券清单来自当前可得列表，可能遗漏已退市证券，因而存在幸存者偏差。每个发布 manifest 都会记录这一限制、AKShare 版本和通道名称；研究报告必须披露该范围，不能将结论推广为全 A 股。
+
 ## 两只股票、一年演练
 
 在下载全市场数据前，先用来源明确的两只股票、一个完整自然年 CSV 演练。通过标准是流程完整可重复，而不是收益表现：
@@ -165,4 +190,4 @@ trading_calendar:   trade_date,is_trading_day[,exchange]
 
 ## 当前下一步
 
-取得一份可合法使用、可复核、覆盖全 A 股 8 至 10 年且包含四类参考表的正式离线快照后，按正式命令完成导入与验收。此前不启动全市场回填，也不将本地两标的公开演练升级为正式基线。
+先完成 AKShare 新浪沪深研究基线的本地验收；取得一份可合法使用、可复核、覆盖全 A 股 8 至 10 年且包含四类参考表的正式离线快照后，再按正式命令完成全市场导入与验收。不得将两标的演练或沪深研究基线升级为正式基线。

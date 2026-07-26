@@ -5,24 +5,38 @@ from pathlib import Path
 import pandas as pd
 
 from app.market_data.catalog import DataCatalog
+from app.market_data.adjustment import apply_corporate_action_adjustment
 from app.market_data.store import MarketDataStore
 
 
 class WarehouseAshareDataProvider:
-    """Read raw daily bars from one immutable, published market-data version."""
+    """Read immutable raw bars or derived total-return prices from one version."""
 
-    def __init__(self, data_version: str, *, warehouse_root: str | Path = "market_data") -> None:
+    def __init__(
+        self,
+        data_version: str,
+        *,
+        warehouse_root: str | Path = "market_data",
+        price_adjustment_mode: str = "corporate_action_total_return",
+    ) -> None:
+        if price_adjustment_mode not in {"raw", "corporate_action_total_return"}:
+            raise ValueError(f"unsupported price adjustment mode: {price_adjustment_mode}")
         self.catalog = DataCatalog(warehouse_root)
         self.store = MarketDataStore(warehouse_root)
         self.version = self.catalog.get_version(data_version)
         if self.version.status != "published":
             raise ValueError("warehouse data_version must be published")
         self.data_version = data_version
+        self.price_adjustment_mode = price_adjustment_mode
         self.diagnostics = {
             "provider": "warehouse",
             "data_version": data_version,
             "manifest_hash": self.version.manifest_hash,
             "source": self.version.source,
+            "price_adjustment_mode": price_adjustment_mode,
+            "event_count": 0,
+            "applied_event_count": 0,
+            "skipped_event_count": 0,
         }
 
     def get_universe(self, universe_name: str, date: str) -> list[str]:
@@ -60,6 +74,10 @@ class WarehouseAshareDataProvider:
         bars = bars.loc[bars["symbol"].isin(symbols)].copy()
         if bars.empty:
             return _empty_daily_bars()
+        if self.price_adjustment_mode == "corporate_action_total_return":
+            actions = self.store.read_effective_corporate_actions(self.catalog, self.data_version)
+            bars, adjustment_diagnostics = apply_corporate_action_adjustment(bars, actions)
+            self.diagnostics.update(adjustment_diagnostics)
         bars = bars.rename(columns={"trade_date": "date"})
         return bars.set_index(["symbol", "date"])[
             ["open", "high", "low", "close", "volume", "amount"]

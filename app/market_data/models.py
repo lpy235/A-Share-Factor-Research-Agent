@@ -33,6 +33,7 @@ class IngestRun:
     next_symbol_index: int
     status: str
     created_at: str
+    parent_version_id: str | None = None
 
     @property
     def completed_symbol_count(self) -> int:
@@ -46,3 +47,13 @@ class IngestError:
     error_message: str
     attempt_count: int
     recorded_at: str
+
+
+@dataclass(frozen=True)
+class IngestSymbolProgress:
+    ingest_run_id: str
+    symbol: str
+    symbol_index: int
+    status: str
+    action_count: int
+    completed_at: str

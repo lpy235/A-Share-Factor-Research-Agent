@@ -24,6 +24,8 @@ class ResearchState(TypedDict, total=False):
     data_provider: Literal["fixture", "akshare", "warehouse"]
     data_version: str | None
     market_data_root: str
+    max_universe_size: int | None
+    price_adjustment_mode: Literal["raw", "corporate_action_total_return"]
     cache_enabled: bool
     fallback_to_fixture: bool
     market_data_cache_dir: str

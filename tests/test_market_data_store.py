@@ -1,6 +1,7 @@
 import pandas as pd
 import pytest
 
+from app.market_data.catalog import DataCatalog
 from app.market_data.store import MarketDataStore
 
 
@@ -100,3 +101,60 @@ def test_store_writes_versioned_reference_and_event_tables(tmp_path):
         saved = pd.read_parquet(path)
         assert {"source", "ingested_at", "data_version"} <= set(saved.columns)
         assert saved["data_version"].eq("v1").all()
+
+
+def test_store_reads_effective_corporate_actions_across_parent_version_chain(tmp_path):
+    catalog = DataCatalog(tmp_path)
+    store = MarketDataStore(tmp_path)
+    parent = catalog.create_draft(source="fixture", as_of_date="2020-01-01")
+    store.write_corporate_actions(
+        pd.DataFrame(
+            {"symbol": ["000001.SZ"], "ex_date": ["2020-01-02"], "action_type": ["cash_dividend"]}
+        ),
+        data_version=parent.version_id,
+        source="fixture",
+    )
+    catalog.publish(parent.version_id, manifest={})
+    child = catalog.create_draft(source="fixture", as_of_date="2020-01-03")
+    store.write_corporate_actions(
+        pd.DataFrame(
+            {"symbol": ["000001.SZ"], "ex_date": ["2020-01-03"], "action_type": ["bonus_share"]}
+        ),
+        data_version=child.version_id,
+        source="fixture",
+    )
+    catalog.publish(child.version_id, manifest={"parent_version_id": parent.version_id})
+
+    actions = store.read_effective_corporate_actions(catalog, child.version_id)
+
+    assert actions[["ex_date", "action_type"]].to_dict("records") == [
+        {"ex_date": pd.Timestamp("2020-01-02"), "action_type": "cash_dividend"},
+        {"ex_date": pd.Timestamp("2020-01-03"), "action_type": "bonus_share"},
+    ]
+
+
+def test_store_reads_effective_reference_tables_across_parent_version_chain(tmp_path):
+    catalog = DataCatalog(tmp_path)
+    store = MarketDataStore(tmp_path)
+    parent = catalog.create_draft(source="fixture", as_of_date="2020-01-01")
+    store.write_security_master(
+        pd.DataFrame(
+            {"symbol": ["000001.SZ"], "exchange": ["SZ"], "security_name": ["A"], "listing_date": ["2000-01-01"]}
+        ),
+        data_version=parent.version_id,
+        source="fixture",
+    )
+    store.write_trading_calendar(
+        pd.DataFrame({"exchange": ["CN"], "trade_date": ["2020-01-02"], "is_trading_day": [True]}),
+        data_version=parent.version_id,
+        source="fixture",
+    )
+    catalog.publish(parent.version_id, manifest={})
+    child = catalog.create_draft(source="fixture", as_of_date="2020-01-03")
+    catalog.publish(child.version_id, manifest={"parent_version_id": parent.version_id})
+
+    master = store.read_effective_security_master(catalog, child.version_id)
+    calendar = store.read_effective_trading_calendar(catalog, child.version_id)
+
+    assert master["symbol"].tolist() == ["000001.SZ"]
+    assert calendar["trade_date"].dt.strftime("%Y-%m-%d").tolist() == ["2020-01-02"]

@@ -226,6 +226,9 @@ function buildRunPayload(documentIds) {
     cache_enabled: checked("#cache-enabled"),
     fallback_to_fixture: checked("#fallback-to-fixture"),
     market_data_cache_dir: "data_cache",
+    data_version: valueOf("#data-version") || null,
+    market_data_root: valueOf("#market-data-root") || "market_data",
+    max_universe_size: optionalNumberOf("#max-universe-size"),
     execution_mode: "next_open_to_next_open",
     commission_bps: numberOf("#commission-bps"),
     stamp_duty_bps: numberOf("#stamp-duty-bps"),
@@ -233,6 +236,7 @@ function buildRunPayload(documentIds) {
     exclude_st: checked("#exclude-st"),
     min_listing_days: numberOf("#min-listing-days"),
     holding_period_days: numberOf("#holding-period-days"),
+    price_adjustment_mode: valueOf("#price-adjustment-mode"),
     async_run: true,
   };
 }
@@ -932,6 +936,11 @@ function valueOf(selector) {
 
 function numberOf(selector) {
   return Number.parseInt(valueOf(selector), 10);
+}
+
+function optionalNumberOf(selector) {
+  const raw = valueOf(selector);
+  return raw === "" ? null : Number(raw);
 }
 
 function checked(selector) {

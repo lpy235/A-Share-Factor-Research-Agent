@@ -84,6 +84,8 @@ assert response.json()["backtest_assumptions"]["price_adjustment_mode"] == "raw"
 
 Also assert the default warehouse mode is `corporate_action_total_return`, invalid modes return 422, report output names the selected rule, and the dashboard payload contains the selector value.
 
+Add a warehouse request test proving that omitted `max_universe_size` does not truncate its universe, while fixture mode defaults to 20 symbols. The dashboard must expose warehouse provider, fixed data version, warehouse root, and optional universe limit.
+
 - [ ] **Step 2: Run focused tests and confirm failure**
 
 Run: `.venv/bin/pytest -q tests/test_research_api.py tests/test_report.py tests/test_ui.py`
@@ -93,6 +95,8 @@ Expected: FAIL because request/state/report/UI do not expose the price mode.
 - [ ] **Step 3: Propagate and disclose the mode**
 
 Use a Pydantic literal field, pass it through `select_data_provider`, persist it in run-start events and graph state, include provider adjustment diagnostics in report assumptions, and provide a compact advanced-settings select control.
+
+Propagate optional `max_universe_size`; select all warehouse symbols when it is absent and retain the bounded fixture/live default. Record available and selected universe counts plus the applied cap in market-data diagnostics and report assumptions.
 
 - [ ] **Step 4: Run focused tests**
 

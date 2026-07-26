@@ -168,7 +168,8 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 ## In Progress
 
 - [x] 阶段 0：日频因子研究治理基线与资源预算；已固化研究边界、数据和入库规则、成本上限、磁盘与时间预算、停止条件。
-- [ ] 阶段 1：版本化 A 股原始日频数据仓；已完成版本目录、Parquet 表存取、未复权数据源适配、可恢复采集、质量发布联动、父子版本链读取、CSV 运维入口、研究任务固定绑定已发布数据版本、证券主表/交易日历/证券状态/公司行为的同版本 CSV 导入与质量契约、正式基线的四类参考表强制门禁与来源元数据契约、两标的一年本地授权演练及两次固定版本复跑、基线验收运行手册、公开候选源决策记录及可审计本地 CSV 发布命令；待取得全市场生产数据快照。
+- [ ] 阶段 1：版本化 A 股原始日频数据仓；已完成版本目录、Parquet 表存取、未复权数据源适配、可恢复采集、质量发布联动、父子版本链读取、CSV 运维入口、研究任务固定绑定已发布数据版本、证券主表/交易日历/证券状态/公司行为的同版本 CSV 导入与质量契约、正式基线的四类参考表强制门禁与来源元数据契约、两标的一年本地授权演练及两次固定版本复跑、AKShare 新浪沪深在市 A 股研究基线入口、基线验收运行手册、公开候选源决策记录及可审计本地 CSV 发布命令；待取得全市场生产数据快照。
+- [ ] 任务 10：公开论文《中国A股市场动量效应的特征和形成机理研究》（财经研究，2014）已完成固定版本运行 `run_e66408a5fdf4`。原 20 标的、原始不复权的 5/10/15 日运行已由 `run_af74f92dd2fa`、`run_bad281ab64cb`、`run_5f876bf9d8f4` 替代；三次均使用 `v20260724_de5cde1b`、`warehouse`、`fallback_used=false`、未设股票池上限的 2,544 标的、公司行为总回报价（相关事件 17,111，应用 16,730）和与持有期一致的非重叠信号日（432/215/142）。`momentum_20` 均因负 IC、ICIR、最大回撤和 Walk-forward 门禁被拒绝，未进入实验、因子库、PM 建议或人工决策。
 
 ## Next Queue
 
@@ -183,6 +184,7 @@ https://github.com/lpy235/A-Share-Factor-Research-Agent.git
 4. Public-source discovery currently uses deterministic curated seeds; live search API integration is deferred.
 5. V6 keeps LLM extraction optional and falls back deterministically when keys/output are unavailable.
 6. V7 keeps AKShare optional and falls back to fixture data when configured.
+7. 公开论文 PDF 可能为扫描件，当前 PDF 解析器不含 OCR；此类材料应使用官方可读摘要或等待 OCR 能力后再做上传式提取。
 ```
 
 ## Recovery Note

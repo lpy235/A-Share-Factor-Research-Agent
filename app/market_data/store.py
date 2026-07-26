@@ -83,6 +83,60 @@ class MarketDataStore:
         merged = merged.drop_duplicates(["symbol", "trade_date"], keep="last")
         return merged.sort_values(["trade_date", "symbol"], ignore_index=True)
 
+    def read_corporate_actions(self, data_version: str) -> pd.DataFrame:
+        actions = self._read_event_table("corporate_actions", data_version)
+        if actions.empty:
+            return pd.DataFrame(columns=("symbol", "ex_date", "action_type", *LINEAGE_COLUMNS))
+        actions["ex_date"] = pd.to_datetime(actions["ex_date"])
+        return actions.sort_values(["ex_date", "symbol", "action_type"], ignore_index=True)
+
+    def read_effective_corporate_actions(self, catalog, data_version: str) -> pd.DataFrame:
+        frames = [self.read_corporate_actions(version_id) for version_id in self._version_chain(catalog, data_version)]
+        frames = [frame for frame in frames if not frame.empty]
+        if not frames:
+            return pd.DataFrame(columns=("symbol", "ex_date", "action_type", *LINEAGE_COLUMNS))
+        merged = pd.concat(frames, ignore_index=True)
+        merged = merged.drop_duplicates(["symbol", "ex_date", "action_type"], keep="last")
+        return merged.sort_values(["ex_date", "symbol", "action_type"], ignore_index=True)
+
+    def read_security_master(self, data_version: str) -> pd.DataFrame:
+        master = self._read_event_table("security_master", data_version)
+        if master.empty:
+            return pd.DataFrame(columns=("symbol", "exchange", "security_name", "listing_date", *LINEAGE_COLUMNS))
+        master["listing_date"] = pd.to_datetime(master["listing_date"], errors="coerce")
+        return master.sort_values("symbol", ignore_index=True)
+
+    def read_trading_calendar(self, data_version: str) -> pd.DataFrame:
+        calendar = self._read_event_table("trading_calendar", data_version)
+        if calendar.empty:
+            return pd.DataFrame(columns=("exchange", "trade_date", "is_trading_day", *LINEAGE_COLUMNS))
+        calendar["trade_date"] = pd.to_datetime(calendar["trade_date"], errors="coerce")
+        return calendar.sort_values(["trade_date", "exchange"], ignore_index=True)
+
+    def read_security_status(self, data_version: str) -> pd.DataFrame:
+        status = self._read_event_table("security_status", data_version)
+        if status.empty:
+            return pd.DataFrame(
+                columns=("symbol", "trade_date", "is_st", "is_suspended", *LINEAGE_COLUMNS)
+            )
+        status["trade_date"] = pd.to_datetime(status["trade_date"], errors="coerce")
+        return status.sort_values(["trade_date", "symbol"], ignore_index=True)
+
+    def read_effective_security_master(self, catalog, data_version: str) -> pd.DataFrame:
+        return self._read_effective_reference_table(
+            catalog, data_version, self.read_security_master, ("symbol",)
+        )
+
+    def read_effective_trading_calendar(self, catalog, data_version: str) -> pd.DataFrame:
+        return self._read_effective_reference_table(
+            catalog, data_version, self.read_trading_calendar, ("exchange", "trade_date")
+        )
+
+    def read_effective_security_status(self, catalog, data_version: str) -> pd.DataFrame:
+        return self._read_effective_reference_table(
+            catalog, data_version, self.read_security_status, ("symbol", "trade_date")
+        )
+
     def write_security_master(
         self, frame: pd.DataFrame, *, data_version: str, source: str
     ) -> Path:
@@ -173,6 +227,22 @@ class MarketDataStore:
             saved.to_parquet(path, index=False, engine="pyarrow")
             paths.append(path)
         return paths
+
+    def _read_event_table(self, table_name: str, data_version: str) -> pd.DataFrame:
+        table_dir = self.paths.lake_dir / table_name / f"data_version={data_version}"
+        parquet_paths = sorted(table_dir.rglob("part-*.parquet"))
+        if not parquet_paths:
+            return pd.DataFrame()
+        return pd.concat([pd.read_parquet(path, engine="pyarrow") for path in parquet_paths], ignore_index=True)
+
+    def _read_effective_reference_table(self, catalog, data_version: str, reader, natural_key: tuple[str, ...]) -> pd.DataFrame:
+        frames = [reader(version_id) for version_id in self._version_chain(catalog, data_version)]
+        frames = [frame for frame in frames if not frame.empty]
+        if not frames:
+            return pd.DataFrame()
+        merged = pd.concat(frames, ignore_index=True)
+        merged = merged.drop_duplicates(list(natural_key), keep="last")
+        return merged.sort_values(list(natural_key), ignore_index=True)
 
     @staticmethod
     def _validate_lineage_arguments(data_version: str, source: str) -> None:
