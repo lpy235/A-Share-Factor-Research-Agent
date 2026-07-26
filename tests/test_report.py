@@ -46,6 +46,8 @@ def test_report_discloses_realistic_timing_costs_and_universe_limitations():
             "commission_bps": 3,
             "stamp_duty_bps": 5,
             "slippage_bps": 5,
+            "holding_period_days": 5,
+            "forward_return_period": "5 trading days",
         },
         long_only_metrics=[
             {
@@ -67,6 +69,8 @@ def test_report_discloses_realistic_timing_costs_and_universe_limitations():
 
     assert "t 日收盘计算，t+1 日开盘成交" in report
     assert "印花税：5 bps" in report
+    assert "持有期：5 个交易日" in report
+    assert "因子前瞻收益窗口：5 trading days" in report
     assert "可执行多头组合" in report
     assert "生存者偏差" in report
     assert "未应用字段：limit_down" in report

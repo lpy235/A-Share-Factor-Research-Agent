@@ -218,6 +218,7 @@ def test_research_api_accepts_realistic_backtest_configuration():
             "slippage_bps": 6,
             "exclude_st": False,
             "min_listing_days": 20,
+            "holding_period_days": 5,
         },
     )
 
@@ -229,6 +230,8 @@ def test_research_api_accepts_realistic_backtest_configuration():
     assert assumptions["slippage_bps"] == 6
     assert assumptions["exclude_st"] is False
     assert assumptions["min_listing_days"] == 20
+    assert assumptions["holding_period_days"] == 5
+    assert assumptions["forward_return_period"] == "5 trading days"
 
 
 @pytest.mark.parametrize(
@@ -238,6 +241,7 @@ def test_research_api_accepts_realistic_backtest_configuration():
         ("stamp_duty_bps", -1),
         ("slippage_bps", -1),
         ("min_listing_days", -1),
+        ("holding_period_days", 0),
         ("execution_mode", "same_close"),
     ],
 )

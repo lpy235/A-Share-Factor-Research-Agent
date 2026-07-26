@@ -123,6 +123,40 @@ def test_zero_cost_net_equals_gross():
     pd.testing.assert_series_equal(result.net_returns, result.gross_returns)
 
 
+def test_portfolio_rebalances_only_after_the_predeclared_holding_period():
+    dates = ["2024-01-01", "2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05"]
+    data = _market_data(dates, {symbol: [10, 10, 10, 10, 10] for symbol in SYMBOLS})
+    factor = _factor(
+        dates,
+        [
+            [5, 4, 3, 2, 1],
+            [1, 5, 4, 3, 2],
+            [1, 5, 4, 3, 2],
+            [1, 5, 4, 3, 2],
+            [0, 0, 0, 0, 0],
+        ],
+    )
+
+    result = run_long_only_backtest(
+        factor,
+        data,
+        direction="positive",
+        config=BacktestConfig(
+            holding_period_days=2,
+            commission_bps=0,
+            stamp_duty_bps=0,
+            slippage_bps=0,
+            min_listing_days=0,
+        ),
+    )
+
+    assert result.weights[pd.Timestamp("2024-01-03")] == {"A": 1.0}
+    assert result.weights[pd.Timestamp("2024-01-04")] == {"B": 1.0}
+    assert result.diagnostics["daily"][1]["rebalanced"] is False
+    assert result.diagnostics["daily"][2]["rebalanced"] is True
+    assert result.costs.loc[pd.Timestamp("2024-01-03"), "total_cost"] == 0
+
+
 @pytest.mark.parametrize(
     ("column", "value", "execution_field"),
     [

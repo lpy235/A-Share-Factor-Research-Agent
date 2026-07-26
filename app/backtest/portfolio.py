@@ -54,6 +54,7 @@ def run_long_only_backtest(
     diagnostics: dict[str, Any] = {
         "executable": True,
         "execution_mode": config.execution_mode,
+        "holding_period_days": config.holding_period_days,
         "missing_fields": [field for field in OPTIONAL_STATUS_FIELDS if field not in market_data],
         "applied_rules": _applied_rules(available_fields, config),
         "blocked_buys": 0,
@@ -73,45 +74,60 @@ def run_long_only_backtest(
     selected_symbols: dict[pd.Timestamp, list[str]] = {}
     cumulative_cost = 0.0
 
-    for signal_date, execution_date, valuation_date in zip(dates, dates[1:], dates[2:]):
-        signal_bars = _date_frame(market_data, signal_date)
+    for rebalance_index, (signal_date, execution_date, valuation_date) in enumerate(
+        zip(dates, dates[1:], dates[2:])
+    ):
         execution_bars = _date_frame(market_data, execution_date)
         valuation_bars = _date_frame(market_data, valuation_date)
-        daily_scores = _date_series(scores, signal_date)
-        candidates, excluded_count = _eligible_candidates(
-            daily_scores, signal_bars, config
-        )
-        if candidates.empty:
-            diagnostics["empty_candidate_dates"] += 1
-            ranked_targets: list[str] = []
-        else:
-            target_count = max(1, math.ceil(len(candidates) / 5))
-            ranked_targets = [str(symbol) for symbol in candidates.nlargest(target_count).index]
+        rebalanced = rebalance_index % config.holding_period_days == 0
 
-        blocked_weights = _blocked_existing_weights(previous_weights, execution_bars)
-        diagnostics["blocked_sells"] += len(blocked_weights)
-        buyable_targets: list[str] = []
-        blocked_buy_count = 0
-        for symbol in ranked_targets:
-            if symbol in blocked_weights:
-                continue
-            if _is_limit_up(symbol, execution_bars):
-                if previous_weights.get(symbol, 0.0) > 0:
-                    blocked_weights[symbol] = previous_weights[symbol]
+        if rebalanced:
+            signal_bars = _date_frame(market_data, signal_date)
+            daily_scores = _date_series(scores, signal_date)
+            candidates, excluded_count = _eligible_candidates(
+                daily_scores, signal_bars, config
+            )
+            if candidates.empty:
+                diagnostics["empty_candidate_dates"] += 1
+                ranked_targets: list[str] = []
+            else:
+                target_count = max(1, math.ceil(len(candidates) / 5))
+                ranked_targets = [str(symbol) for symbol in candidates.nlargest(target_count).index]
+
+            blocked_weights = _blocked_existing_weights(previous_weights, execution_bars)
+            blocked_sell_count = len(blocked_weights)
+            diagnostics["blocked_sells"] += blocked_sell_count
+            buyable_targets: list[str] = []
+            blocked_buy_count = 0
+            for symbol in ranked_targets:
+                if symbol in blocked_weights:
+                    continue
+                if _is_limit_up(symbol, execution_bars):
+                    if previous_weights.get(symbol, 0.0) > 0:
+                        blocked_weights[symbol] = previous_weights[symbol]
+                    else:
+                        blocked_buy_count += 1
+                    continue
+                if _can_hold_or_buy(symbol, execution_bars):
+                    buyable_targets.append(symbol)
                 else:
                     blocked_buy_count += 1
-                continue
-            if _can_hold_or_buy(symbol, execution_bars):
-                buyable_targets.append(symbol)
-            else:
-                blocked_buy_count += 1
-        diagnostics["blocked_buys"] += blocked_buy_count
+            diagnostics["blocked_buys"] += blocked_buy_count
 
-        target_weights = dict(blocked_weights)
-        allocatable_weight = max(0.0, 1.0 - sum(blocked_weights.values()))
-        if buyable_targets:
-            equal_weight = allocatable_weight / len(buyable_targets)
-            target_weights.update({symbol: equal_weight for symbol in buyable_targets})
+            target_weights = dict(blocked_weights)
+            allocatable_weight = max(0.0, 1.0 - sum(blocked_weights.values()))
+            if buyable_targets:
+                equal_weight = allocatable_weight / len(buyable_targets)
+                target_weights.update({symbol: equal_weight for symbol in buyable_targets})
+            candidate_count = int(len(candidates))
+            selected_for_date = buyable_targets
+        else:
+            target_weights = dict(previous_weights)
+            candidate_count = 0
+            excluded_count = 0
+            blocked_buy_count = 0
+            blocked_sell_count = 0
+            selected_for_date = list(previous_weights)
 
         cost = _calculate_costs(previous_weights, target_weights, config)
         cumulative_cost += cost["total_cost"]
@@ -126,18 +142,19 @@ def run_long_only_backtest(
         turnover_values[execution_date] = cost["buy_turnover"] + cost["sell_turnover"]
         cost_rows.append({"date": execution_date, **cost})
         weights[execution_date] = target_weights
-        selected_symbols[execution_date] = buyable_targets
+        selected_symbols[execution_date] = selected_for_date
         diagnostics["missing_valuation_opens"] += missing_valuation_opens
         diagnostics["daily"].append(
             {
                 "signal_date": str(signal_date.date()),
                 "execution_date": str(execution_date.date()),
                 "valuation_date": str(valuation_date.date()),
-                "candidate_count": int(len(candidates)),
+                "rebalanced": rebalanced,
+                "candidate_count": candidate_count,
                 "excluded_count": excluded_count,
-                "selected_count": len(buyable_targets),
+                "selected_count": len(selected_for_date),
                 "blocked_buy_count": blocked_buy_count,
-                "blocked_sell_count": len(blocked_weights),
+                "blocked_sell_count": blocked_sell_count,
             }
         )
         previous_weights = target_weights

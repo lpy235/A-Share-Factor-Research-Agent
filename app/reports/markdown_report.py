@@ -103,7 +103,11 @@ def render_report(
                 f"{_fmt(metric.get('relative_max_drawdown'))} | "
                 f"{_fmt(metric.get('cumulative_cost'))} |"
             )
-        lines.append("- 组合时序：t 日收盘计算，t+1 日开盘成交，持有至 t+2 日开盘。")
+        holding_period_days = backtest_assumptions.get("holding_period_days", 1)
+        lines.append(
+            "- 组合时序：t 日收盘计算，t+1 日开盘成交，"
+            f"持有 {holding_period_days} 个交易日并按日估值。"
+        )
         lines.append("- G5-G1 仅为研究诊断，不代表普通 A 股账户可执行的自由卖空策略。")
         benchmark_note = backtest_assumptions.get("benchmark_note")
         if benchmark_note:
@@ -152,6 +156,8 @@ def render_report(
             lines.append(f"- Manifest 哈希：{backtest_assumptions.get('manifest_hash')}")
             lines.append(f"- 原始来源：{backtest_assumptions.get('market_data_source')}")
         lines.append(f"- 调仓频率：{backtest_assumptions.get('rebalance_frequency')}")
+        lines.append(f"- 持有期：{backtest_assumptions.get('holding_period_days')} 个交易日")
+        lines.append(f"- 因子前瞻收益窗口：{backtest_assumptions.get('forward_return_period')}")
         lines.append(f"- 执行模式：{backtest_assumptions.get('execution_mode')}")
         lines.append(f"- 佣金：{backtest_assumptions.get('commission_bps')} bps（买卖双边）")
         lines.append(f"- 印花税：{backtest_assumptions.get('stamp_duty_bps')} bps（仅卖出）")

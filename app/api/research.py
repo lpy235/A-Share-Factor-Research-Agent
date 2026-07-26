@@ -50,6 +50,7 @@ class ResearchRunRequest(BaseModel):
     slippage_bps: float = Field(default=5.0, ge=0)
     exclude_st: bool = True
     min_listing_days: int = Field(default=60, ge=0)
+    holding_period_days: int = Field(default=1, ge=1, le=60)
     historical_universe_id: str | None = Field(
         default=None, pattern=r"^universe_[0-9a-f]{12}$"
     )
@@ -260,6 +261,7 @@ def _build_workflow_state(
         "slippage_bps": request.slippage_bps,
         "exclude_st": request.exclude_st,
         "min_listing_days": request.min_listing_days,
+        "holding_period_days": request.holding_period_days,
         "historical_universe_id": request.historical_universe_id,
     }
 
@@ -287,6 +289,7 @@ def _build_run_started_payload(request: ResearchRunRequest, llm_config_summary: 
         "slippage_bps": request.slippage_bps,
         "exclude_st": request.exclude_st,
         "min_listing_days": request.min_listing_days,
+        "holding_period_days": request.holding_period_days,
         "historical_universe_id": request.historical_universe_id,
         "async_run": request.async_run,
     }

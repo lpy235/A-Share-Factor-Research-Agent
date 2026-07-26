@@ -232,6 +232,7 @@ function buildRunPayload(documentIds) {
     slippage_bps: numberOf("#slippage-bps"),
     exclude_st: checked("#exclude-st"),
     min_listing_days: numberOf("#min-listing-days"),
+    holding_period_days: numberOf("#holding-period-days"),
     async_run: true,
   };
 }
@@ -682,6 +683,7 @@ function renderBacktestAssumptions(assumptions) {
     ["区间", assumptions.start_date && `${assumptions.start_date} 至 ${assumptions.end_date}`],
     ["数据源", assumptions.data_provider],
     ["调仓", assumptions.rebalance_frequency],
+    ["持有期", assumptions.forward_return_period],
     ["执行", assumptions.execution_mode],
     ["佣金", `${assumptions.commission_bps ?? 0} bps`],
     ["印花税", `${assumptions.stamp_duty_bps ?? 0} bps`],

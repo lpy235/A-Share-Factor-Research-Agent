@@ -228,6 +228,25 @@ def test_workflow_exposes_cost_aware_long_only_outputs(tmp_path):
     assert "生存者偏差" in state["universe_diagnostics"]["warning"]
 
 
+def test_workflow_uses_the_predeclared_holding_period_for_evaluation_and_portfolios(tmp_path):
+    state = run_research_workflow(
+        {
+            "run_id": "test_holding_period",
+            "research_topic": "A股量价类动量因子",
+            "source_mode": "upload",
+            "start_date": "2020-01-01",
+            "end_date": "2020-06-30",
+            "cache_enabled": False,
+            "market_data_cache_dir": str(tmp_path),
+            "holding_period_days": 5,
+        }
+    )
+
+    assert state["backtest_assumptions"]["holding_period_days"] == 5
+    assert state["backtest_assumptions"]["forward_return_period"] == "5 trading days"
+    assert state["tradability_diagnostics"]["volume_price_momentum"]["holding_period_days"] == 5
+
+
 def test_is_and_oos_portfolios_each_start_flat(tmp_path):
     state = run_research_workflow(
         {

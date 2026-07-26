@@ -33,6 +33,7 @@ class ResearchState(TypedDict, total=False):
     slippage_bps: float
     exclude_st: bool
     min_listing_days: int
+    holding_period_days: int
     historical_universe_id: str | None
     market_data_diagnostics: dict
     source_diagnostics: dict

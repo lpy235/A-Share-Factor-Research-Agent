@@ -648,6 +648,7 @@ def _run_backtest(state: ResearchState, tracer: GraphEventTracer) -> ResearchSta
         item.get("factor_name"): item.get("direction", "unknown")
         for item in state.get("factor_specs", [])
     }
+    holding_period_days = int(state.get("holding_period_days", 1))
     portfolio_config = BacktestConfig(
         execution_mode=state.get("execution_mode", "next_open_to_next_open"),
         commission_bps=state.get("commission_bps", 3.0),
@@ -655,13 +656,18 @@ def _run_backtest(state: ResearchState, tracer: GraphEventTracer) -> ResearchSta
         slippage_bps=state.get("slippage_bps", 5.0),
         exclude_st=state.get("exclude_st", True),
         min_listing_days=state.get("min_listing_days", 60),
+        holding_period_days=holding_period_days,
     )
     benchmark_returns = _compute_benchmark_returns(data)
 
     for factor_name, factor in factor_values.items():
         # ------- In-sample -------
         factor_is = _clip_series_to_data(factor, data_is) if data_is is not None else factor
-        forward_returns_is = compute_forward_returns(data_is["close"], periods=1) if data_is is not None else None
+        forward_returns_is = (
+            compute_forward_returns(data_is["close"], periods=holding_period_days)
+            if data_is is not None
+            else None
+        )
         is_result = (
             _backtest_single_factor(factor_name, factor_is, forward_returns_is)
             if forward_returns_is is not None
@@ -672,7 +678,11 @@ def _run_backtest(state: ResearchState, tracer: GraphEventTracer) -> ResearchSta
 
         # ------- Out-of-sample -------
         factor_oos = _clip_series_to_data(factor, data_oos) if data_oos is not None else factor
-        forward_returns_oos = compute_forward_returns(data_oos["close"], periods=1) if data_oos is not None else None
+        forward_returns_oos = (
+            compute_forward_returns(data_oos["close"], periods=holding_period_days)
+            if data_oos is not None
+            else None
+        )
         oos_result = (
             _backtest_single_factor(factor_name, factor_oos, forward_returns_oos)
             if forward_returns_oos is not None
@@ -848,6 +858,9 @@ def _merge_portfolio_diagnostics(
         + int(oos_diagnostics.get("blocked_sells", 0)),
         "empty_candidate_dates": int(is_diagnostics.get("empty_candidate_dates", 0))
         + int(oos_diagnostics.get("empty_candidate_dates", 0)),
+        "holding_period_days": int(
+            is_diagnostics.get("holding_period_days", oos_diagnostics.get("holding_period_days", 1))
+        ),
         "is": is_diagnostics,
         "oos": oos_diagnostics,
     }
@@ -1080,6 +1093,8 @@ def _build_backtest_assumptions(
 ) -> dict[str, Any]:
     provider = diagnostics.get("provider", state.get("data_provider", "fixture"))
     oos_date = state.get("_oos_split_date", "")
+    holding_period_days = int(state.get("holding_period_days", 1))
+    period_unit = "trading day" if holding_period_days == 1 else "trading days"
     return {
         "universe": state.get("universe", "CSI300"),
         "start_date": state.get("start_date", "2020-01-01"),
@@ -1089,8 +1104,11 @@ def _build_backtest_assumptions(
         "manifest_hash": diagnostics.get("manifest_hash"),
         "market_data_source": diagnostics.get("source"),
         "fallback_used": bool(diagnostics.get("fallback_used", False)),
-        "rebalance_frequency": "daily",
-        "forward_return_period": "1 trading day",
+        "rebalance_frequency": (
+            "daily" if holding_period_days == 1 else f"every {holding_period_days} trading days"
+        ),
+        "holding_period_days": holding_period_days,
+        "forward_return_period": f"{holding_period_days} {period_unit}",
         "transaction_cost_bps": 0,
         "execution_mode": state.get("execution_mode", "next_open_to_next_open"),
         "commission_bps": state.get("commission_bps", 3.0),

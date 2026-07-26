@@ -37,6 +37,7 @@ def test_dashboard_index_served():
     assert 'id="slippage-bps"' in response.text
     assert 'id="exclude-st"' in response.text
     assert 'id="min-listing-days"' in response.text
+    assert 'id="holding-period-days"' in response.text
     assert 'id="long-only-metrics"' in response.text
     assert 'id="tradability-diagnostics"' in response.text
     assert 'id="llm-provider"' in response.text

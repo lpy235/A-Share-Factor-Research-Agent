@@ -70,6 +70,7 @@ def run_research_workflow(state: ResearchState) -> ResearchState:
         "slippage_bps": 5.0,
         "exclude_st": True,
         "min_listing_days": 60,
+        "holding_period_days": 1,
         "historical_universe_id": None,
         "warnings": [],
         "errors": [],
