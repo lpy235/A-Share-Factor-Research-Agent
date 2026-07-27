@@ -1113,7 +1113,7 @@ def _build_combination_backtest(state: ResearchState) -> dict[str, Any]:
 
 
 def _generate_report(state: ResearchState, tracer: GraphEventTracer) -> ResearchState:
-    hypotheses = state.get("hypotheses", [])
+    sources = state.get("sources", [])
     market_data_diagnostics = state.get("market_data_diagnostics", {})
     provider = market_data_diagnostics.get("provider", "fixture")
     if market_data_diagnostics.get("fallback_used"):
@@ -1132,7 +1132,7 @@ def _generate_report(state: ResearchState, tracer: GraphEventTracer) -> Research
         research_topic=state.get("research_topic") or "上传文档因子研究",
         sources=[
             {"source_title": item.get("source_title"), "source_url": item.get("source_url")}
-            for item in hypotheses
+            for item in sources
         ],
         factors=state.get("factor_specs", []),
         metrics=state.get("metrics", []),

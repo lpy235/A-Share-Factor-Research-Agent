@@ -23,6 +23,25 @@ def test_generate_factor_specs_from_hypotheses():
     assert "volume" in specs[0].formula
 
 
+def test_rule_based_extraction_builds_a_loser_leg_for_english_contrarian_evidence():
+    chunks = [
+        DocumentChunk(
+            "c1",
+            "public contrarian paper",
+            "public_paper",
+            "The contrarian strategy buys the loser portfolio and sells the winner portfolio.",
+            "https://doi.org/10.1371/journal.pone.0137892",
+        )
+    ]
+
+    hypotheses = extract_hypotheses_from_chunks("China A-share contrarian", chunks)
+    specs = generate_factor_specs(hypotheses)
+
+    assert [item.factor_name for item in hypotheses] == ["contrarian_loser_20"]
+    assert specs[0].formula == "rank(-returns(close, 20))"
+    assert specs[0].source_url == "https://doi.org/10.1371/journal.pone.0137892"
+
+
 def test_validate_dsl_node_excludes_negative_window_and_validates_fallback():
     invalid_spec = FactorSpec(
         factor_name="forward_delay",

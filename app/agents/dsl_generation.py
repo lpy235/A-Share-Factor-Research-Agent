@@ -16,8 +16,8 @@ class FactorDslGenerationService:
             formula = "rank(ts_std(returns(close, 1), 20))"
             lookback = 20
             category = "volatility"
-        elif "反转" in text:
-            formula = "rank(returns(close, 20))"
+        elif "反转" in text or "contrarian" in lowered or hypothesis.category == "reversal":
+            formula = "rank(-returns(close, 20))"
             lookback = 20
             category = "reversal"
         else:
@@ -39,4 +39,3 @@ class FactorDslGenerationService:
             source_excerpt=hypothesis.evidence,
             confidence=hypothesis.confidence,
         )
-

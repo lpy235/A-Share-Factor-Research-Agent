@@ -11,6 +11,7 @@ def extract_hypotheses_from_chunks(
     hypotheses: list[FactorHypothesis] = []
     for chunk in chunks:
         text = chunk.text
+        lowered = text.lower()
         if "量价" in text or ("成交量" in text and "价格" in text):
             hypotheses.append(
                 FactorHypothesis(
@@ -24,7 +25,20 @@ def extract_hypotheses_from_chunks(
                     confidence=0.75,
                 )
             )
-        elif "动量" in text or "过去收益" in text:
+        elif "反转" in text or "contrarian" in lowered:
+            hypotheses.append(
+                FactorHypothesis(
+                    factor_name="contrarian_loser_20",
+                    hypothesis="过去收益最低的股票可能在后续期间出现横截面反转。",
+                    evidence=text[:200],
+                    source_title=chunk.source_title,
+                    source_url=chunk.source_url,
+                    category="reversal",
+                    required_fields=["close"],
+                    confidence=0.75,
+                )
+            )
+        elif "动量" in text or "过去收益" in text or "momentum" in lowered:
             hypotheses.append(
                 FactorHypothesis(
                     factor_name="momentum_20",
@@ -56,4 +70,3 @@ def extract_hypotheses_from_chunks(
 def generate_factor_specs(hypotheses: list[FactorHypothesis]) -> list[FactorSpec]:
     service = FactorDslGenerationService()
     return [service.generate_fallback(item) for item in hypotheses]
-

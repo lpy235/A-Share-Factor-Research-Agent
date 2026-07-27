@@ -2,6 +2,7 @@ import pandas as pd
 
 from app.agents.graph import NODE_ORDER, build_research_graph, run_research_workflow
 from app.agents.graph_nodes import _select_factors, _select_universe_symbols
+from app.factor.dsl import FactorSpec
 
 
 def test_build_research_graph_invokes_minimal_state():
@@ -46,6 +47,42 @@ def test_workflow_preserves_uploaded_document_source(tmp_path):
 
     assert state["factor_specs"][0]["source_title"] == "factor_note.md"
     assert state["selected_factors"] == ["volume_price_momentum"]
+
+
+def test_seeded_factor_report_uses_uploaded_source_not_demo_fallback(tmp_path):
+    doc = tmp_path / "verified_public_source.md"
+    doc.write_text("A preserved public-source evidence record.", encoding="utf-8")
+    spec = FactorSpec(
+        factor_name="seeded_reversal",
+        hypothesis="预注册的反转因子。",
+        formula="rank(-returns(close, 20))",
+        required_fields=["close"],
+        direction="positive",
+        category="reversal",
+        frequency="daily",
+        lookback=20,
+        source_title="Verified public source",
+        source_url="https://example.com/public-source",
+        source_excerpt="预注册证据。",
+        confidence=0.9,
+    )
+
+    state = run_research_workflow(
+        {
+            "run_id": "test_seeded_factor_source",
+            "research_topic": "预注册反转研究",
+            "source_mode": "upload",
+            "document_paths": [str(doc)],
+            "universe": "CSI300",
+            "start_date": "2020-01-01",
+            "end_date": "2020-12-31",
+            "max_chunks": 5,
+            "factor_specs_seed": [spec.model_dump()],
+        }
+    )
+
+    assert "verified_public_source.md" in state["report_markdown"]
+    assert "demo factor note" not in state["report_markdown"]
 
 
 def test_workflow_auto_mode_discovers_public_sources():
